@@ -1,0 +1,36 @@
+# --- Microservices (Tracked in their own repos) ---
+woodpantry-ingredients/
+woodpantry-recipes/
+woodpantry-pantry/
+woodpantry-matching/
+woodpantry-ingestion/
+woodpantry-shopping-list/
+woodpantry-meal-plan/
+woodpantry-openapi/
+woodpantry-ui/
+
+# --- Local Infrastructure ---
+local/.env
+local/data/
+# Ignore Podman/Docker internal volumes if they leak into the host
+local/.podman-compose*/
+local/woodpantry-db-data/
+local/woodpantry-mq-data/
+
+# --- IDE / OS Junk ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.log
+
+# --- Documentation (Always Track) ---
+!CLAUDE.md
+!CRAWL.md
+!WALK.md
+!RUN.md
+!TODO.md
+!BUGS.md
+!local/docker-compose.yaml
+!local/init-db.sql
+!local/.env.example

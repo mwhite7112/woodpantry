@@ -1,0 +1,3 @@
+CREATE DATABASE ingredients;
+CREATE DATABASE recipes;
+CREATE DATABASE pantry;

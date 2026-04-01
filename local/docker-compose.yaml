@@ -1,0 +1,130 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-woodpantry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-woodpantry}
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - woodpantry-db-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-woodpantry} -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-woodpantry}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-woodpantry}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - woodpantry-mq-data:/var/lib/rabbitmq
+
+  ingredients:
+    build:
+      context: ../woodpantry-ingredients
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      PORT: 8080
+      DB_URL: postgres://${POSTGRES_USER:-woodpantry}:${POSTGRES_PASSWORD:-woodpantry}@db:5432/ingredients?sslmode=disable
+      LOG_LEVEL: info
+    ports:
+      - "8081:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  recipes:
+    build:
+      context: ../woodpantry-recipes
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      PORT: 8080
+      DB_URL: postgres://${POSTGRES_USER:-woodpantry}:${POSTGRES_PASSWORD:-woodpantry}@db:5432/recipes?sslmode=disable
+      DICTIONARY_URL: http://ingredients:8080
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-woodpantry}:${RABBITMQ_DEFAULT_PASS:-woodpantry}@rabbitmq:5672/
+      LOG_LEVEL: info
+    ports:
+      - "8082:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+  pantry:
+    build:
+      context: ../woodpantry-pantry
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      PORT: 8080
+      DB_URL: postgres://${POSTGRES_USER:-woodpantry}:${POSTGRES_PASSWORD:-woodpantry}@db:5432/pantry?sslmode=disable
+      DICTIONARY_URL: http://ingredients:8080
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-woodpantry}:${RABBITMQ_DEFAULT_PASS:-woodpantry}@rabbitmq:5672/
+      LOG_LEVEL: info
+    ports:
+      - "8083:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+  matching:
+    build:
+      context: ../woodpantry-matching
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      PORT: 8080
+      PANTRY_URL: http://pantry:8080
+      RECIPE_URL: http://recipes:8080
+      DICTIONARY_URL: http://ingredients:8080
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-woodpantry}:${RABBITMQ_DEFAULT_PASS:-woodpantry}@rabbitmq:5672/
+      LOG_LEVEL: info
+    ports:
+      - "8084:8080"
+    depends_on:
+      - ingredients
+      - recipes
+      - pantry
+      - rabbitmq
+
+  ingestion:
+    build:
+      context: ../woodpantry-ingestion
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      PORT: 8080
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-woodpantry}:${RABBITMQ_DEFAULT_PASS:-woodpantry}@rabbitmq:5672/
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DICTIONARY_URL: http://ingredients:8080
+      RECIPE_URL: http://recipes:8080
+      PANTRY_URL: http://pantry:8080
+      LOG_LEVEL: info
+    ports:
+      - "8085:8080"
+    depends_on:
+      - ingredients
+      - recipes
+      - pantry
+      - rabbitmq
+
+volumes:
+  woodpantry-db-data:
+  woodpantry-mq-data:
