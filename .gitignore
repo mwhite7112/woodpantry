@@ -37,3 +37,5 @@ local/woodpantry-mq-data/
 !local/.env.example
 !Makefile
 !tests/
+!.github/
+!local/docker-compose.ci.yaml

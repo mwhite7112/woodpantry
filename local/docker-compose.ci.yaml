@@ -1,0 +1,26 @@
+# CI overlay — replaces local build contexts with pre-built GHCR images.
+# Usage: podman compose -f docker-compose.yaml -f docker-compose.ci.yaml up -d
+#
+# All Go services publish :latest on merge to main.
+# Ingestion builds from source until it has its own release CI.
+
+services:
+  ingredients:
+    image: ghcr.io/mwhite7112/woodpantry-ingredients:${INGREDIENTS_TAG:-latest}
+    build: !reset null
+
+  recipes:
+    image: ghcr.io/mwhite7112/woodpantry-recipes:${RECIPES_TAG:-latest}
+    build: !reset null
+
+  pantry:
+    image: ghcr.io/mwhite7112/woodpantry-pantry:${PANTRY_TAG:-latest}
+    build: !reset null
+
+  matching:
+    image: ghcr.io/mwhite7112/woodpantry-matching:${MATCHING_TAG:-latest}
+    build: !reset null
+
+  ingestion:
+    image: ghcr.io/mwhite7112/woodpantry-ingestion:${INGESTION_TAG:-latest}
+    build: !reset null

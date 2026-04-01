@@ -1,0 +1,75 @@
+name: Smoke Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily
+  workflow_dispatch: {}
+
+env:
+  COMPOSE_BASE: local/docker-compose.yaml
+  COMPOSE_CI: local/docker-compose.ci.yaml
+
+jobs:
+  smoke:
+    name: Smoke tests
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy CI env file
+        run: cp local/.env.example local/.env
+
+      - name: Pull images
+        run: >-
+          docker compose
+          -f ${{ env.COMPOSE_BASE }}
+          -f ${{ env.COMPOSE_CI }}
+          --env-file local/.env
+          pull --ignore-buildable
+
+      - name: Start stack
+        run: >-
+          docker compose
+          -f ${{ env.COMPOSE_BASE }}
+          -f ${{ env.COMPOSE_CI }}
+          --env-file local/.env
+          up -d
+
+      - name: Wait for services
+        run: make wait-healthy
+        timeout-minutes: 3
+
+      - name: Run smoke tests
+        run: make test-only
+
+      - name: Dump logs on failure
+        if: failure()
+        run: >-
+          docker compose
+          -f ${{ env.COMPOSE_BASE }}
+          -f ${{ env.COMPOSE_CI }}
+          --env-file local/.env
+          logs --tail=50
+
+      - name: Tear down
+        if: always()
+        run: >-
+          docker compose
+          -f ${{ env.COMPOSE_BASE }}
+          -f ${{ env.COMPOSE_CI }}
+          --env-file local/.env
+          down --remove-orphans --volumes

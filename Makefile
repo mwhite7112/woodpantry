@@ -2,6 +2,7 @@
 # Manages the local dev stack and smoke tests via podman compose.
 
 COMPOSE := podman compose -f local/docker-compose.yaml --env-file local/.env
+COMPOSE_CI := docker compose -f local/docker-compose.yaml -f local/docker-compose.ci.yaml --env-file local/.env
 TESTS_DIR := tests
 
 # --- Dev Stack ---
@@ -62,6 +63,21 @@ wait-healthy: ## Wait for all services to pass health checks (up to 120s)
 	$(COMPOSE) ps; \
 	$(COMPOSE) logs --tail=20; \
 	exit 1
+
+# --- CI (pre-built GHCR images) ---
+
+.PHONY: ci-up
+ci-up: ci-down ## Start stack using pre-built GHCR images (no local build)
+	$(COMPOSE_CI) pull --ignore-buildable
+	$(COMPOSE_CI) up -d
+
+.PHONY: ci-down
+ci-down: ## Tear down CI stack
+	$(COMPOSE_CI) down --remove-orphans --volumes 2>/dev/null || true
+
+.PHONY: test-ci
+test-ci: ci-up wait-healthy ## Pull GHCR images, start stack, run smoke tests, tear down
+	@bash $(TESTS_DIR)/run_all.sh; rc=$$?; $(MAKE) ci-down; exit $$rc
 
 # --- Cleanup ---
 
