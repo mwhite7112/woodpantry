@@ -6,6 +6,8 @@ WoodPantry is a self-hosted, microservices-based pantry and recipe tracking appl
 
 ```
 woodpantry/                    ← you are here (documentation + phase planning root)
+├── local/                     ← Docker Compose stack + env config
+├── tests/                     ← Cross-service smoke tests (see tests/SMOKE_TESTS.md)
 woodpantry-ingredients/        ← Ingredient Dictionary Service
 woodpantry-recipes/            ← Recipe Service
 woodpantry-pantry/             ← Pantry Service
@@ -132,6 +134,25 @@ make test-coverage-html  # HTML coverage report
 make generate-mocks      # Regenerate mocks
 make sqlc                # Regenerate sqlc (DB services only)
 ```
+
+## Smoke Tests (Cross-Service)
+
+Smoke tests live in `tests/` and run against the full local Podman Compose stack. They test HTTP contracts and cross-service flows, not internal logic.
+
+See `tests/SMOKE_TESTS.md` for the full guide on writing and organizing tests.
+
+### Quick Reference
+
+```bash
+make dev           # Start local stack (rebuilds images)
+make dev-down      # Tear down stack
+make test          # Start stack → run all smoke tests → tear down
+make test-only     # Run smoke tests against already-running stack
+```
+
+### Bug Tracking
+
+When a smoke test reveals a cross-service bug, document it in `BUGS.md` with symptom, root cause, required fix, and a link back to the smoke test that catches it. See `tests/SMOKE_TESTS.md` for the exact format.
 
 ## What to Avoid
 
