@@ -2,6 +2,15 @@
 
 **Phase Goal**: The full experience. Vibe-based recipe search, receipt photo ingestion, polished web UI, and meal planning. This is the phase where WoodPantry becomes something you use every day without thinking about it.
 
+**Status (2026-03-31)**:
+- [ ] No Phase 3 feature in this file is implemented end-to-end yet.
+- [ ] `woodpantry-meal-plan`, `woodpantry-openapi`, and `woodpantry-ui` are still placeholder/docs-only directories.
+- [ ] The current codebase has no `POST /recipes/search`, no semantic re-ranking in matching, no Twilio MMS receipt flow, and no deployed frontend.
+
+**Notes**:
+- Some groundwork exists for later work: the ingestion service already has OpenAI client code and a `VISION_MODEL` setting, and the recipe/matching docs already describe future semantic search.
+- Those hooks are not wired into live Phase 3 behavior yet, so all RUN tickets remain open.
+
 **Exit Criteria**:
 - You can photograph a grocery receipt and have items land in your pantry after confirming
 - `POST /matches/query` re-ranks results using semantic similarity against a natural language prompt

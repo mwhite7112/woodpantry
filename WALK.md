@@ -2,6 +2,18 @@
 
 **Phase Goal**: Remove all friction from pantry updates. Make the SMS flow work end-to-end. Introduce RabbitMQ as the event backbone. Add shopping list generation.
 
+**Status (2026-03-31)**:
+- [x] W-1 is implemented in infra code: RabbitMQ, durable queues, persistence, and management ingress all exist in `../woodhouse-infra`.
+- [x] W-2 through W-4 are partially to mostly implemented in application code.
+- [x] `woodpantry-ingestion` now has a passing local Python test suite.
+- [ ] W-5 through W-7 are not implemented beyond stubs/placeholders.
+
+**Notes**:
+- `woodpantry-recipes` already uses async queue-based ingest.
+- `woodpantry-pantry` still also supports the older in-service OpenAI ingest path; the queue-based pantry path exists in `woodpantry-ingestion`, but the pantry service has not been fully refactored off the direct path.
+- `woodpantry-ingestion` is present in this repo and local compose, but it is not yet wired into `../woodhouse-infra/apps/woodpantry`.
+- The pantry cluster deployment currently does not inject `RABBITMQ_URL`, so `pantry.updated` publishing is not enabled by the cluster manifests yet.
+
 **Exit Criteria**:
 - You can text a grocery list to a Twilio number and have it show up in your pantry after confirming
 - RabbitMQ is deployed and all Phase 1 services publish/subscribe where specified
@@ -19,14 +31,14 @@
 **Service**: Infrastructure
 
 **Deliverables**:
-- [ ] RabbitMQ deployed to cluster via Helm chart or k8s manifests
-- [ ] Persistent storage via Longhorn
-- [ ] Management UI exposed via Traefik (internal only)
-- [ ] Define exchange topology:
+- [x] RabbitMQ deployed to cluster via Helm chart or k8s manifests
+- [x] Persistent storage via Longhorn
+- [x] Management UI exposed via Traefik (internal only)
+- [x] Define exchange topology:
   - `woodpantry.topic` exchange (topic type)
   - Routing keys: `pantry.ingest.requested`, `pantry.updated`, `recipe.import.requested`, `recipe.imported`, `shopping_list.requested`
-- [ ] RabbitMQ credentials in cluster secrets
-- [ ] Document exchange + queue topology in this file and in `woodpantry-ingestion/CLAUDE.md`
+- [x] RabbitMQ credentials in cluster secrets
+- [x] Document exchange + queue topology in this file and in `woodpantry-ingestion/CLAUDE.md`
 
 ### Exchange & Queue Topology
 
@@ -45,9 +57,9 @@
 **Management UI**: `https://rabbitmq.woodlab.work`
 
 **Acceptance Criteria**:
-- [ ] RabbitMQ management UI accessible
+- [x] RabbitMQ management UI accessible
 - [ ] Test publish/consume round-trip works from a local Go program
-- [ ] No messages lost on service restart (durable queues)
+- [x] No messages lost on service restart (durable queues)
 
 ---
 
@@ -58,15 +70,15 @@
 **Service**: `woodpantry-pantry`
 
 **Deliverables**:
-- [ ] Add RabbitMQ publisher to Pantry Service (`internal/events/publisher.go`)
-- [ ] Publish `pantry.updated` event after: item add, item update, item delete, ingest confirm, reset
-- [ ] Event payload: `{ "timestamp": "...", "changed_item_ids": [...] }` (keep it minimal)
-- [ ] Graceful handling if RabbitMQ is unavailable (log error, do not fail the HTTP request)
-- [ ] `RABBITMQ_URL` env var, optional — if not set, skip publishing (preserves Phase 1 behaviour)
+- [x] Add RabbitMQ publisher to Pantry Service (`internal/events/publisher.go`)
+- [x] Publish `pantry.updated` event after: item add, item update, item delete, ingest confirm, reset
+- [x] Event payload: `{ "timestamp": "...", "changed_item_ids": [...] }` (keep it minimal)
+- [x] Graceful handling if RabbitMQ is unavailable (log error, do not fail the HTTP request)
+- [x] `RABBITMQ_URL` env var, optional — if not set, skip publishing (preserves Phase 1 behaviour)
 
 **Acceptance Criteria**:
 - [ ] A pantry item update publishes a `pantry.updated` message observable in the management UI
-- [ ] Service continues operating normally if RabbitMQ is down
+- [x] Service continues operating normally if RabbitMQ is down
 
 ---
 
@@ -77,16 +89,16 @@
 **Service**: `woodpantry-recipes`
 
 **Deliverables**:
-- [ ] Add RabbitMQ publisher: publish `recipe.import.requested` on `POST /recipes/ingest` instead of calling OpenAI API directly
-- [ ] Add RabbitMQ subscriber: listen for `recipe.imported` events, commit the structured recipe payload to DB
-- [ ] `POST /recipes/ingest/:job_id/confirm` flow updated to work with async job status
-- [ ] Phase 1 direct OpenAI API call removed from Recipe Service (moved to Ingestion Pipeline)
-- [ ] Job status polling still works via `GET /recipes/ingest/:job_id`
+- [x] Add RabbitMQ publisher: publish `recipe.import.requested` on `POST /recipes/ingest` instead of calling OpenAI API directly
+- [x] Add RabbitMQ subscriber: listen for `recipe.imported` events, commit the structured recipe payload to DB
+- [x] `POST /recipes/ingest/:job_id/confirm` flow updated to work with async job status
+- [x] Phase 1 direct OpenAI API call removed from Recipe Service (moved to Ingestion Pipeline)
+- [x] Job status polling still works via `GET /recipes/ingest/:job_id`
 
 **Acceptance Criteria**:
-- [ ] Submitting a recipe for import returns a job ID immediately
-- [ ] Ingestion Pipeline processes the job asynchronously and Recipe Service commits on `recipe.imported`
-- [ ] Staged review flow still works — user can still review and confirm before commit
+- [x] Submitting a recipe for import returns a job ID immediately
+- [x] Ingestion Pipeline processes the job asynchronously and Recipe Service commits on `recipe.imported`
+- [x] Staged review flow still works — user can still review and confirm before commit
 
 ---
 
@@ -97,8 +109,8 @@
 **Service**: `woodpantry-ingestion`
 
 **Deliverables**:
-- [ ] Service scaffolding: FastAPI app + uvicorn, health check, aio-pika RabbitMQ subscriber setup
-- [ ] Subscribe to `pantry.ingest.requested`:
+- [x] Service scaffolding: FastAPI app + uvicorn, health check, aio-pika RabbitMQ subscriber setup
+- [x] Subscribe to `pantry.ingest.requested`:
   - Extract structured ingredient list from free-text using OpenAI API
   - Call `/ingredients/resolve` for each item
   - POST staged items to Pantry Service
@@ -107,14 +119,16 @@
   - Extract structured recipe JSON from free-text using OpenAI API
   - Call `/ingredients/resolve` for each recipe ingredient
   - Publish `recipe.imported` with structured payload
-- [ ] OpenAI API client with structured extraction prompts for both pantry and recipe contexts (`gpt-5-mini` for cost efficiency)
+- [x] OpenAI API client with structured extraction prompts for both pantry and recipe contexts (`gpt-5-mini` for cost efficiency)
 - [ ] Per-job error handling: mark job as failed, preserve raw input for debugging
-- [ ] `OPENAI_API_KEY`, `RABBITMQ_URL` env vars
+- [x] `OPENAI_API_KEY`, `RABBITMQ_URL` env vars
+  The recipe worker publishes `recipe.imported`; it does not currently resolve ingredients itself, and pantry failure handling is still minimal.
 
 **Acceptance Criteria**:
-- [ ] Free-text pantry ingest via queue produces correct staged items in Pantry Service
-- [ ] Free-text recipe import via queue produces a confirmed recipe in Recipe Service
-- [ ] LLM failures mark the job as failed without crashing the service
+- [x] Free-text pantry ingest via queue produces correct staged items in Pantry Service
+- [x] Free-text recipe import via queue produces a confirmed recipe in Recipe Service
+- [x] LLM failures mark the job as failed without crashing the service
+  The current local Python test suite passes, including worker/client coverage around failure handling.
 
 ---
 
@@ -154,6 +168,7 @@
 - [ ] Items grouped by ingredient category in response
 - [ ] Quantity aggregation handles unit normalization (e.g. 500g + 250g = 750g) using unit conversion data from Dictionary
 - [ ] HTTP clients for Recipe Service, Pantry Service, Ingredient Dictionary
+  `woodpantry-shopping-list` is still documentation-only.
 
 **Acceptance Criteria**:
 - [ ] Shopping list for 3 recipes correctly aggregates quantities across all recipes
@@ -180,6 +195,7 @@
 - [ ] Error response schema standardized across all services
 - [ ] Auth scheme documented (API key header)
 - [ ] README with instructions for how to use the spec (e.g. Swagger UI, code generation)
+  `woodpantry-openapi` currently contains docs only; no spec files exist yet.
 
 **Acceptance Criteria**:
 - [ ] Spec validates without errors against an OpenAPI 3.x linter

@@ -24,6 +24,13 @@ Generated 2026-03-31. Organized by service for chunk-based delegation.
 - [ ] Verify publish/consume round-trip from a local Go program
 - [ ] Verify durable queues survive service restart
 
+### Smoke Tests — Per-Release Triggers
+- [ ] Add `repository_dispatch` trigger (`image-published`) to `.github/workflows/smoke.yaml`
+- [ ] Add nightly schedule fallback (`cron: "0 6 * * *"`) to smoke workflow
+- [ ] Add dispatch step to each service repo's `build.yaml` (requires a PAT with `repo` scope stored as `SMOKE_DISPATCH_TOKEN` secret in each service repo)
+- [ ] Alternatively: add a shared reusable workflow in this repo that service repos call via `uses:`
+- This ensures smoke tests run automatically whenever any service publishes a new image, catching cross-service regressions before they reach the cluster.
+
 ---
 
 ## woodpantry-ingredients
