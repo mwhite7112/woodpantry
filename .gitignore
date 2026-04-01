@@ -34,3 +34,5 @@ local/woodpantry-mq-data/
 !local/docker-compose.yaml
 !local/init-db.sql
 !local/.env.example
+!Makefile
+!tests/
