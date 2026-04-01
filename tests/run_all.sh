@@ -17,7 +17,17 @@ NC='\033[0m'
 if [[ $# -gt 0 ]]; then
     TEST_FILES=("$@")
 else
-    TEST_FILES=("$SCRIPT_DIR"/smoke_*.sh)
+    TEST_FILES=(
+        "$SCRIPT_DIR/smoke_health.sh"
+        "$SCRIPT_DIR/smoke_ingredients.sh"
+        "$SCRIPT_DIR/smoke_ingredients_contracts.sh"
+        "$SCRIPT_DIR/smoke_recipes.sh"
+        "$SCRIPT_DIR/smoke_recipes_ingest.sh"
+        "$SCRIPT_DIR/smoke_pantry.sh"
+        "$SCRIPT_DIR/smoke_pantry_ingest.sh"
+        "$SCRIPT_DIR/smoke_matching.sh"
+        "$SCRIPT_DIR/smoke_phase1_e2e.sh"
+    )
 fi
 
 TOTAL=0

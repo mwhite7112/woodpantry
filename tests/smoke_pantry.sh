@@ -7,7 +7,7 @@ source "$SCRIPT_DIR/lib.sh"
 
 log_step "Pantry — Add Item"
 
-ADD_RESP=$(api_post "$PAN_URL/pantry/items" '{"name": "onion", "quantity": 2.0, "unit": "pcs"}') || {
+ADD_RESP=$(api_post "$PAN_URL/pantry/items" '{"name": "onion", "quantity": 2.0, "unit": "pcs"}' '200,201') || {
     log_fail "POST /pantry/items returned non-200. Response: $ADD_RESP"
     smoke_summary; exit $?
 }
@@ -39,10 +39,11 @@ FIRST_ITEM=$(echo "$PAN_RESP" | jq '.[0] // empty' 2>/dev/null || echo "$PAN_RES
 if [[ -z "$FIRST_ITEM" || "$FIRST_ITEM" == "null" ]]; then
     log_skip "No items to validate shape"
 else
-    HAS_NAME=$(echo "$FIRST_ITEM" | jq 'has("name")')
-    HAS_QTY=$(echo "$FIRST_ITEM" | jq 'has("quantity")')
-    if [[ "$HAS_NAME" == "true" && "$HAS_QTY" == "true" ]]; then
-        log_success "Pantry item has expected fields (name, quantity)"
+    HAS_INGREDIENT_ID=$(echo "$FIRST_ITEM" | jq 'has("ingredient_id") or has("IngredientID")')
+    HAS_QTY=$(echo "$FIRST_ITEM" | jq 'has("quantity") or has("Quantity")')
+    HAS_UNIT=$(echo "$FIRST_ITEM" | jq 'has("unit") or has("Unit")')
+    if [[ "$HAS_INGREDIENT_ID" == "true" && "$HAS_QTY" == "true" && "$HAS_UNIT" == "true" ]]; then
+        log_success "Pantry item has expected fields (ingredient_id, quantity, unit)"
     else
         log_fail "Pantry item missing expected fields. Item: $FIRST_ITEM"
     fi

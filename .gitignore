@@ -23,6 +23,7 @@ local/woodpantry-mq-data/
 .vscode/
 *.swp
 *.log
+.codex
 
 # --- Documentation (Always Track) ---
 !CLAUDE.md

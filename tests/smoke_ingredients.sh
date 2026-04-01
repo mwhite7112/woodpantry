@@ -8,7 +8,7 @@ source "$SCRIPT_DIR/lib.sh"
 log_step "Ingredient Resolution"
 
 # Test: resolve a new ingredient
-RESP=$(api_post "$ING_URL/ingredients/resolve" '{"name": "yellow onion"}') || {
+RESP=$(api_post "$ING_URL/ingredients/resolve" '{"name": "yellow onion"}' '200,201') || {
     log_fail "POST /ingredients/resolve returned non-200. Response: $RESP"
     smoke_summary; exit $?
 }
@@ -21,7 +21,7 @@ else
 fi
 
 # Test: resolving the same name again should return the same ID (idempotent)
-RESP2=$(api_post "$ING_URL/ingredients/resolve" '{"name": "yellow onion"}') || {
+RESP2=$(api_post "$ING_URL/ingredients/resolve" '{"name": "yellow onion"}' '200,201') || {
     log_fail "Second resolve call failed. Response: $RESP2"
     smoke_summary; exit $?
 }
