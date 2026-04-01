@@ -14,7 +14,7 @@ CREATE_RESP=$(api_post "$REC_URL/recipes" '{
         {"name": "garlic", "quantity": 3.0, "unit": "cloves"}
     ],
     "instructions": "Combine and simmer."
-}') || {
+}' '200,201') || {
     log_fail "POST /recipes returned non-200. Response: $CREATE_RESP"
     smoke_summary; exit $?
 }
