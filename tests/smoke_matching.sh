@@ -5,6 +5,8 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
+require_jq
+
 log_step "Matching — Basic Query"
 
 RESP=$(api_get "$MAT_URL/matches?max_missing=5") || {
@@ -12,7 +14,7 @@ RESP=$(api_get "$MAT_URL/matches?max_missing=5") || {
     smoke_summary; exit $?
 }
 
-ERROR=$(echo "$RESP" | jq -r '.error // empty')
+ERROR=$(echo "$RESP" | jq -r 'if type == "object" then .error // empty else empty end')
 if [[ -n "$ERROR" ]]; then
     log_fail "Matching returned error: $ERROR"
 else

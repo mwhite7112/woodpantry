@@ -38,7 +38,7 @@ CREATE_RESP=$(api_post "$REC_URL/recipes" "$(jq -nc \
             {name: $garlic, quantity: 2, unit: "cloves"}
         ],
         instructions: "Combine ingredients and simmer."
-    }')") || {
+    }')" '200,201') || {
     if echo "$CREATE_RESP" | jq -e '.error == "invalid ingredient_id: "' > /dev/null 2>&1; then
         log_skip "Skipping end-to-end match assertion because Recipe create currently requires ingredient_id"
         smoke_summary

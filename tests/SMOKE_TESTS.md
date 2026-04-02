@@ -2,7 +2,7 @@
 
 This directory contains end-to-end smoke tests that run against the full local Podman Compose stack. These tests verify HTTP contracts, cross-service integrations, and phase-level user journeys. They do not replace per-service unit or integration tests.
 
-The current smoke scripts cover only a small Phase 1 happy path. This document defines the fuller target suite so new tests are added deliberately instead of ad hoc.
+The current smoke scripts now cover the core Phase 1 flows plus a small set of contract-regression checks around Ingredient Dictionary, Recipe structured create, Pantry response shape, Matching, and staged ingest flows. This document defines the fuller target suite so new tests are added deliberately instead of ad hoc.
 
 ## Smoke Test Goals
 
@@ -30,9 +30,10 @@ tests/
 ├── run_all.sh
 ├── smoke_health.sh
 ├── smoke_ingredients.sh
-├── smoke_recipes_crud.sh
+├── smoke_recipes.sh
+├── smoke_recipes_contracts.sh
 ├── smoke_recipes_ingest.sh
-├── smoke_pantry_crud.sh
+├── smoke_pantry.sh
 ├── smoke_pantry_ingest.sh
 ├── smoke_matching.sh
 ├── smoke_phase1_e2e.sh
@@ -89,14 +90,16 @@ Run tests from lowest-level dependency to highest-level flow:
 
 1. `smoke_health.sh`
 2. `smoke_ingredients.sh`
-3. `smoke_recipes_crud.sh`
-4. `smoke_pantry_crud.sh`
-5. `smoke_matching.sh`
-6. `smoke_phase1_e2e.sh`
-7. Phase 2 files
-8. `smoke_phase2_e2e.sh`
-9. Phase 3 files
-10. `smoke_phase3_e2e.sh`
+3. `smoke_recipes.sh`
+4. `smoke_recipes_contracts.sh`
+5. `smoke_pantry.sh`
+6. `smoke_pantry_ingest.sh`
+7. `smoke_matching.sh`
+8. `smoke_phase1_e2e.sh`
+9. Phase 2 files
+10. `smoke_phase2_e2e.sh`
+11. Phase 3 files
+12. `smoke_phase3_e2e.sh`
 
 This keeps failures local. If Matching fails because Pantry changed its response shape, you should see Pantry fail first.
 
@@ -140,7 +143,7 @@ High-value negative checks:
 - Missing `name` returns a 4xx, not 200 with broken payload.
 - Invalid JSON returns a 4xx.
 
-### `smoke_recipes_crud.sh`
+### `smoke_recipes.sh`
 
 Purpose: protect recipe storage and dictionary linkage on structured create.
 
@@ -189,7 +192,22 @@ High-value negative checks:
 - Confirming a nonexistent job returns 404.
 - Confirming a failed or incomplete job returns a 4xx.
 
-### `smoke_pantry_crud.sh`
+### `smoke_recipes_contracts.sh`
+
+Purpose: protect the structured recipe-create contracts that recently regressed.
+
+Assertions:
+
+- `POST /recipes` accepts ingredients specified only by `name`.
+- Ingredients provided by `name` are resolved through the Dictionary and persisted with canonical `ingredient_id` values.
+- `POST /recipes` still accepts explicit canonical `ingredient_id` values.
+- Fetching the created recipe returns the expected canonical ingredient IDs.
+
+High-value negative checks:
+
+- Missing `title` returns a 4xx.
+
+### `smoke_pantry.sh`
 
 Purpose: protect pantry state and the response contract Matching depends on.
 
@@ -209,7 +227,7 @@ Cross-service assertions:
 
 Contract checks worth keeping permanently:
 
-- `GET /pantry` returns the exact collection shape Matching expects.
+- `GET /pantry` returns the current wrapped collection shape Matching expects: `{ "items": [...] }`.
 - Quantity and unit fields remain named consistently.
 
 High-value negative checks:

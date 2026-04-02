@@ -1,6 +1,6 @@
 # WoodPantry — Implementation TODO
 
-Generated 2026-03-31. Organized by service for chunk-based delegation.
+Generated 2026-04-01. Organized by service for chunk-based delegation.
 
 ---
 
@@ -96,9 +96,9 @@ Generated 2026-03-31. Organized by service for chunk-based delegation.
 
 ## woodpantry-ingestion
 
-> Phase 2 Python service. Recipe extraction working. Pantry extraction and Twilio stubbed.
+> Phase 2 Python service. Recipe extraction and pantry queue ingest are implemented. Twilio is still stubbed.
 
-### W-4 — Core Service (~80% done)
+### W-4 — Core Service (~90% done)
 
 #### Recipe import flow (done)
 - [x] FastAPI + uvicorn scaffolding, `/healthz`
@@ -115,13 +115,14 @@ Generated 2026-03-31. Organized by service for chunk-based delegation.
 - [x] Wire `pantry.ingest.requested` consumer in `app/main.py`
 - [x] Implement pantry HTTP client in `app/clients/pantry.py` — calls Pantry Service staging endpoint
 - [x] Add `PANTRY_URL` env var to `kubernetes/deployment.yaml`
-- [x] `DEP: Pantry Service staging contract` — added `POST /pantry/ingest/{job_id}/stage` endpoint to Pantry Service
+- [x] `DEP: Pantry Service staging contract` — `woodpantry-pantry` exposes `POST /pantry/ingest/{job_id}/stage`
+- [x] Publish `pantry.ingest.failed` from the pantry worker on extraction/staging failures
 
-#### Tests (not done)
-- [ ] Unit tests for `extract_recipe()` (mock OpenAI, verify Pydantic validation)
-- [ ] Unit tests for `extract_pantry()` once implemented
-- [ ] Unit tests for recipe_ingest worker (mock LLM + publisher)
-- [ ] Unit tests for dictionary client
+#### Tests (done)
+- [x] Unit tests for `extract_recipe()` (mock OpenAI, verify Pydantic validation)
+- [x] Unit tests for `extract_pantry()`
+- [x] Unit tests for recipe_ingest worker (mock LLM + publisher)
+- [x] Unit tests for dictionary client
 - [ ] Integration test for RabbitMQ publish/consume round-trip
 
 ### W-5 — Twilio SMS (~5% done)
@@ -142,28 +143,28 @@ Generated 2026-03-31. Organized by service for chunk-based delegation.
 
 ## woodpantry-shopping-list
 
-> Phase 2 service. 0% implemented. CLAUDE.md and README.md spec exist.
+> Phase 2 service. Initial scaffold implemented: runnable Go baseline, config parsing, migrations, `/healthz`, tests, Dockerfile, and Kubernetes manifests are in place. Generation logic, upstream clients, and repo/image publication remain.
 
 ### W-6 — Full Service Build
 
 #### Scaffolding
-- [ ] `go.mod` + `go.sum` — module `github.com/mwhite7112/woodpantry-shopping-list`
-- [ ] `cmd/shopping-list/main.go` — entrypoint with env var parsing
-- [ ] `Makefile` — test, test-integration, sqlc, generate-mocks targets
-- [ ] `Dockerfile` — multi-stage Go build, distroless base
-- [ ] `.mockery.yaml`
+- [x] `go.mod` + `go.sum` — module `github.com/mwhite7112/woodpantry-shopping-list`
+- [x] `cmd/shopping-list/main.go` — entrypoint with env var parsing
+- [x] `Makefile` — test, test-integration, sqlc, generate-mocks targets
+- [x] `Dockerfile` — multi-stage Go build, distroless base
+- [x] `.mockery.yaml`
 
 #### Database
-- [ ] Migration: `shopping_lists` table (id, created_at, recipe_ids)
-- [ ] Migration: `shopping_list_items` table (id, list_id, ingredient_id, name, quantity, unit, category, in_pantry_qty, needed_qty)
-- [ ] `sqlc.yaml` + queries for CRUD
+- [x] Migration: `shopping_lists` table (id, created_at, recipe_ids)
+- [x] Migration: `shopping_list_items` table (id, list_id, ingredient_id, name, quantity, unit, category, in_pantry_qty, needed_qty)
+- [x] `sqlc.yaml` + queries for CRUD
 - [ ] Generate sqlc code
 
 #### HTTP Clients
 - [ ] Recipe Service client — `GET /recipes/{id}` to fetch ingredient lists
 - [ ] Pantry Service client — `GET /pantry` to fetch current stock
 - [ ] Dictionary client — `GET /ingredients/{id}/conversions` for unit normalization
-- `DEP: woodpantry-ingredients` must expose `GET /ingredients/{id}/conversions` endpoint (currently missing handler).
+- `DEP: woodpantry-ingredients` conversion endpoint exists; Shopping List still needs to consume it.
 
 #### Service Logic
 - [ ] Generation algorithm: fetch recipes -> aggregate ingredients -> normalize units -> diff against pantry -> group by category
@@ -172,20 +173,25 @@ Generated 2026-03-31. Organized by service for chunk-based delegation.
 - [ ] Category grouping (produce, dairy, protein, pantry, spice, liquid, other)
 
 #### API Handlers
-- [ ] `GET /healthz`
+- [x] `GET /healthz`
 - [ ] `POST /shopping-list` — accept recipe IDs, generate and persist list
 - [ ] `GET /shopping-list/{id}` — retrieve previously generated list
 
 #### Kubernetes
-- [ ] `kubernetes/deployment.yaml` with env vars (PORT, DB_URL, RECIPE_URL, PANTRY_URL, DICTIONARY_URL)
-- [ ] `kubernetes/service.yaml`
-- [ ] `kubernetes/kustomization.yaml`
+- [x] `kubernetes/deployment.yaml` with env vars (PORT, DB_URL, RECIPE_URL, PANTRY_URL, DICTIONARY_URL)
+- [x] `kubernetes/service.yaml`
+- [x] `kubernetes/kustomization.yaml`
+
+#### Repo & Release
+- [ ] Create the standalone `woodpantry-shopping-list` GitHub repo and push the scaffold
+- [ ] Add CI/build workflow to publish `ghcr.io/<owner>/woodpantry-shopping-list`
+- [ ] Wire `woodpantry-shopping-list` into `woodhouse-infra` once the image exists
 
 #### Tests
 - [ ] Unit tests for generation algorithm (mock clients)
 - [ ] Unit tests for unit normalization logic
 - [ ] Integration tests with testcontainers-go
-- [ ] Handler tests with httptest
+- [x] Handler tests with httptest
 
 #### Dependencies
 - `DEP: woodpantry-recipes` must be deployed (fetches recipe ingredients)
@@ -256,8 +262,9 @@ Respects dependency chains. Items at the same level can run in parallel.
    ├── woodpantry-ingredients: add substitute + conversion HTTP handlers
    └── woodpantry-recipes: fix ListRecipesByTag SQL query
 
-2. W-4 pantry ingest (depends on #1 for full flow, but can start immediately)
-   └── woodpantry-ingestion: extract_pantry(), pantry worker, wire consumer
+2. [x] W-4 pantry ingest core path
+   ├── woodpantry-pantry: add `POST /pantry/ingest/{job_id}/stage`
+   └── woodpantry-ingestion: pantry worker failure publishing (`pantry.ingest.failed`)
 
 3. W-5 Twilio SMS (depends on W-4)
    └── woodpantry-ingestion: webhook handler, signature validation, SMS reply, CONFIRM flow

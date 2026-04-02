@@ -22,6 +22,7 @@ else
         "$SCRIPT_DIR/smoke_ingredients.sh"
         "$SCRIPT_DIR/smoke_ingredients_contracts.sh"
         "$SCRIPT_DIR/smoke_recipes.sh"
+        "$SCRIPT_DIR/smoke_recipes_contracts.sh"
         "$SCRIPT_DIR/smoke_recipes_ingest.sh"
         "$SCRIPT_DIR/smoke_pantry.sh"
         "$SCRIPT_DIR/smoke_pantry_ingest.sh"

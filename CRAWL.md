@@ -9,7 +9,7 @@
 
 **Notes**:
 - Recipe ingest no longer does direct extraction inside `woodpantry-recipes`; that work has already been moved into the Phase 2 ingestion pipeline.
-- `POST /recipes` currently expects canonical `ingredient_id` values for structured creates; the smoke suite still skips the old raw-name create assumption.
+- `POST /recipes` now supports structured creates that provide either canonical `ingredient_id` values or ingredient `name` values resolved through the Dictionary.
 - No `/metrics` endpoints, service-level Traefik ingress, or Grafana dashboards were found in the current repos.
 
 **Exit Criteria**:
@@ -154,7 +154,7 @@
 **Deliverables**:
 - [x] PostgreSQL instance(s) provisioned on cluster (one DB per service, or one PG instance with separate databases)
 - [x] Kubernetes Deployments, Services, and ConfigMaps for each service
-- [ ] Traefik IngressRoutes for each service (subdomain or path-based)
+- [ ] Kubernetes Ingress resources for each service (subdomain or path-based)
 - [x] Secrets management for DB credentials and LLM API keys
 - [ ] ServiceMonitor or scrape config for Victoria Metrics
 - [ ] Grafana dashboard with at minimum: request rate, error rate, latency per service

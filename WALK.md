@@ -2,16 +2,18 @@
 
 **Phase Goal**: Remove all friction from pantry updates. Make the SMS flow work end-to-end. Introduce RabbitMQ as the event backbone. Add shopping list generation.
 
-**Status (2026-03-31)**:
+**Status (2026-04-01)**:
 - [x] W-1 is implemented in infra code: RabbitMQ, durable queues, persistence, and management ingress all exist in `../woodhouse-infra`.
 - [x] W-2 through W-4 are partially to mostly implemented in application code.
 - [x] `woodpantry-ingestion` now has a passing local Python test suite.
-- [ ] W-5 through W-7 are not implemented beyond stubs/placeholders.
+- [ ] W-5 and W-7 are not implemented beyond stubs/placeholders.
+- [~] W-6 has a runnable service scaffold but not the generation logic.
 
 **Notes**:
 - `woodpantry-recipes` already uses async queue-based ingest.
 - `woodpantry-pantry` still also supports the older in-service OpenAI ingest path; the queue-based pantry path exists in `woodpantry-ingestion`, but the pantry service has not been fully refactored off the direct path.
-- `woodpantry-ingestion` is present in this repo and local compose, but it is not yet wired into `../woodhouse-infra/apps/woodpantry`.
+- `woodpantry-pantry` now exposes `POST /pantry/ingest/{job_id}/stage` for queue-driven pantry staging.
+- `woodpantry-ingestion` is now wired into `../woodhouse-infra/apps/woodpantry`, but deploy success still depends on a published image tag being available.
 - The pantry cluster deployment currently does not inject `RABBITMQ_URL`, so `pantry.updated` publishing is not enabled by the cluster manifests yet.
 
 **Exit Criteria**:
@@ -115,17 +117,16 @@
   - Call `/ingredients/resolve` for each item
   - POST staged items to Pantry Service
   - Publish result back or update job status
-- [ ] Subscribe to `recipe.import.requested`:
+- [x] Subscribe to `recipe.import.requested`:
   - Extract structured recipe JSON from free-text using OpenAI API
-  - Call `/ingredients/resolve` for each recipe ingredient
   - Publish `recipe.imported` with structured payload
 - [x] OpenAI API client with structured extraction prompts for both pantry and recipe contexts (`gpt-5-mini` for cost efficiency)
-- [ ] Per-job error handling: mark job as failed, preserve raw input for debugging
+- [x] Per-job error handling: mark job as failed (Recipe flow and Pantry flow publish failure events)
 - [x] `OPENAI_API_KEY`, `RABBITMQ_URL` env vars
-  The recipe worker publishes `recipe.imported`; it does not currently resolve ingredients itself, and pantry failure handling is still minimal.
+  The recipe worker publishes `recipe.imported`; it does not currently resolve ingredients itself because recipe confirm still resolves in `woodpantry-recipes`.
 
 **Acceptance Criteria**:
-- [x] Free-text pantry ingest via queue produces correct staged items in Pantry Service
+ - [x] Free-text pantry ingest via queue stages items in Pantry Service via `POST /pantry/ingest/{job_id}/stage`
 - [x] Free-text recipe import via queue produces a confirmed recipe in Recipe Service
 - [x] LLM failures mark the job as failed without crashing the service
   The current local Python test suite passes, including worker/client coverage around failure handling.
@@ -162,13 +163,16 @@
 **Service**: `woodpantry-shopping-list`
 
 **Deliverables**:
-- [ ] DB schema: `shopping_lists`, `shopping_list_items` tables (for persisting generated lists)
+- [x] DB schema: `shopping_lists`, `shopping_list_items` tables (for persisting generated lists)
+- [x] Runnable Go scaffold: entrypoint, env parsing, migrations, `/healthz`, Dockerfile, tests, and Kubernetes manifests
 - [ ] `POST /shopping-list` — accept array of recipe IDs; fetch each recipe's ingredients from Recipe Service; aggregate quantities per ingredient; diff against Pantry Service current state; persist and return list
 - [ ] `GET /shopping-list/:id` — retrieve a previously generated list
 - [ ] Items grouped by ingredient category in response
 - [ ] Quantity aggregation handles unit normalization (e.g. 500g + 250g = 750g) using unit conversion data from Dictionary
 - [ ] HTTP clients for Recipe Service, Pantry Service, Ingredient Dictionary
-  `woodpantry-shopping-list` is still documentation-only.
+
+  `woodpantry-shopping-list` now has a runnable Go scaffold with `/healthz`, env parsing, migrations, and Kubernetes manifests. Generation endpoints and upstream clients are still unimplemented.
+  It also still needs to be created as a standalone GitHub repo and published to GHCR before GitOps can deploy it.
 
 **Acceptance Criteria**:
 - [ ] Shopping list for 3 recipes correctly aggregates quantities across all recipes
