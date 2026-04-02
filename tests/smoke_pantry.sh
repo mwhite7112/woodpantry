@@ -5,9 +5,13 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
+require_jq
+
 log_step "Pantry — Add Item"
 
-ADD_RESP=$(api_post "$PAN_URL/pantry/items" '{"name": "onion", "quantity": 2.0, "unit": "pcs"}' '200,201') || {
+ITEM_NAME="$(unique_name "pantry onion")"
+
+ADD_RESP=$(api_post "$PAN_URL/pantry/items" "$(jq -nc --arg name "$ITEM_NAME" '{name: $name, quantity: 2.0, unit: "pcs"}')" '200,201') || {
     log_fail "POST /pantry/items returned non-200. Response: $ADD_RESP"
     smoke_summary; exit $?
 }
@@ -21,21 +25,20 @@ PAN_RESP=$(api_get "$PAN_URL/pantry") || {
     smoke_summary; exit $?
 }
 
-# The Matching service expects a raw JSON array from GET /pantry.
-# If Pantry wraps it in an object (e.g. {"items": [...]}), Matching breaks.
-# See BUGS.md for history on this contract mismatch.
-IS_ARRAY=$(echo "$PAN_RESP" | jq 'if type == "array" then true else false end')
+# The Pantry service returns a wrapper object with a top-level "items" collection.
+# Matching was updated to consume this shape.
+HAS_ITEMS_WRAPPER=$(echo "$PAN_RESP" | jq 'if type == "object" and (.items | type == "array") then true else false end')
 
-if [[ "$IS_ARRAY" == "true" ]]; then
-    log_success "GET /pantry returns raw array (Matching contract satisfied)"
+if [[ "$HAS_ITEMS_WRAPPER" == "true" ]]; then
+    log_success "GET /pantry returns wrapper object with items array"
 else
-    log_fail "CONTRACT MISMATCH: GET /pantry returns object, Matching expects array. Response: $PAN_RESP"
+    log_fail "CONTRACT MISMATCH: GET /pantry does not return {items:[...]}. Response: $PAN_RESP"
 fi
 
 # --- Verify items have expected fields ---
 log_step "Pantry — Item Shape"
 
-FIRST_ITEM=$(echo "$PAN_RESP" | jq '.[0] // empty' 2>/dev/null || echo "$PAN_RESP" | jq '.items[0] // empty' 2>/dev/null)
+FIRST_ITEM=$(echo "$PAN_RESP" | jq '.items[0] // empty')
 if [[ -z "$FIRST_ITEM" || "$FIRST_ITEM" == "null" ]]; then
     log_skip "No items to validate shape"
 else
@@ -47,6 +50,23 @@ else
     else
         log_fail "Pantry item missing expected fields. Item: $FIRST_ITEM"
     fi
+fi
+
+log_step "Pantry — Added Item Visible"
+
+HAS_ADDED_ITEM=$(echo "$PAN_RESP" | jq --arg name "$ITEM_NAME" 'any(.items[]; (.name // .Name // "") == $name)')
+if [[ "$HAS_ADDED_ITEM" == "true" ]]; then
+    log_success "Added pantry item appears in GET /pantry"
+else
+    log_fail "Added pantry item missing from GET /pantry. Response: $PAN_RESP"
+fi
+
+log_step "Pantry — Validation"
+
+if api_post "$PAN_URL/pantry/items" '{"quantity": 1, "unit": "pcs"}' '400,422' > /dev/null 2>&1; then
+    log_success "Pantry rejects missing name with a 4xx validation error"
+else
+    log_fail "Pantry did not reject missing name with a validation error"
 fi
 
 smoke_summary

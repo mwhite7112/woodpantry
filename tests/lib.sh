@@ -37,6 +37,23 @@ require_jq() {
     fi
 }
 
+wait_until() {
+    local cmd="$1"
+    local timeout="${2:-30}"
+    local interval="${3:-2}"
+    local elapsed=0
+
+    while (( elapsed < timeout )); do
+        if eval "$cmd" >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
+    done
+
+    return 1
+}
+
 unique_name() {
     local prefix="$1"
     echo "${prefix} ${SMOKE_RUN_ID}"
@@ -127,6 +144,18 @@ extract_json() {
     local body="$1"
     local expr="$2"
     echo "$body" | jq -r "$expr // empty"
+}
+
+assert_json_expr() {
+    local body="$1"
+    local expr="$2"
+    local message="$3"
+
+    if echo "$body" | jq -e "$expr" > /dev/null 2>&1; then
+        log_success "$message"
+    else
+        log_fail "$message. Response: $body"
+    fi
 }
 
 has_json_path() {
