@@ -9,8 +9,8 @@ require_jq
 
 RESOLVED_INGREDIENT_NAME="$(unique_name "contract flour")"
 ID_ONLY_INGREDIENT_NAME="$(unique_name "contract milk")"
-NAME_RECIPE_TITLE="$(unique_name "Recipe Name Resolve")"
-ID_RECIPE_TITLE="$(unique_name "Recipe Explicit ID")"
+NAME_RECIPE_TITLE="Recipe-Name-Resolve-$(date +%s%N | cut -b10-19)-$(unique_token "smoke")"
+ID_RECIPE_TITLE="Recipe-Explicit-ID-$(date +%s%N | cut -b10-19)-$(unique_token "smoke")"
 
 log_step "Recipes Contracts — Seed Dictionary"
 
@@ -49,7 +49,7 @@ CREATE_BY_NAME_RESP=$(api_post "$REC_URL/recipes" "$(jq -nc \
     smoke_summary; exit $?
 }
 
-NAME_RECIPE_ID=$(extract_json "$CREATE_BY_NAME_RESP" '.id // .ID')
+NAME_RECIPE_ID=$(extract_id_and_verify_contract "$CREATE_BY_NAME_RESP" "CONTRACT MISMATCH: POST /recipes (by name) returned uppercase 'ID'")
 if [[ -n "$NAME_RECIPE_ID" ]]; then
     log_success "Structured recipe create by ingredient name succeeded"
 else
@@ -62,11 +62,15 @@ NAME_FETCH_RESP=$(api_get "$REC_URL/recipes/$NAME_RECIPE_ID") || {
     smoke_summary; exit $?
 }
 
-NAME_LINKED_ID=$(extract_json "$NAME_FETCH_RESP" '.ingredients[0].ingredient_id // .ingredients[0].ingredientId // .ingredients[0].IngredientID')
+NAME_LINKED_ID=$(extract_json "$NAME_FETCH_RESP" '.ingredients[0].ingredient_id')
 if [[ "$NAME_LINKED_ID" == "$RESOLVED_INGREDIENT_ID" ]]; then
     log_success "Recipe create by name persisted the canonical ingredient ID"
 else
-    log_fail "Recipe create by name did not persist resolved ingredient ID. Expected '$RESOLVED_INGREDIENT_ID', got '$NAME_LINKED_ID'. Response: $NAME_FETCH_RESP"
+    if echo "$NAME_FETCH_RESP" | jq -e '.ingredients[0] | has("IngredientID")' > /dev/null 2>&1; then
+        log_fail "CONTRACT MISMATCH: Ingredient has uppercase 'IngredientID' instead of 'ingredient_id'"
+    else
+        log_fail "Recipe create by name did not persist resolved ingredient ID. Expected '$RESOLVED_INGREDIENT_ID', got '$NAME_LINKED_ID'. Response: $NAME_FETCH_RESP"
+    fi
 fi
 
 log_step "Recipes Contracts — Explicit Ingredient ID Persists"
@@ -85,7 +89,7 @@ CREATE_BY_ID_RESP=$(api_post "$REC_URL/recipes" "$(jq -nc \
     smoke_summary; exit $?
 }
 
-ID_RECIPE_ID=$(extract_json "$CREATE_BY_ID_RESP" '.id // .ID')
+ID_RECIPE_ID=$(extract_id_and_verify_contract "$CREATE_BY_ID_RESP" "CONTRACT MISMATCH: POST /recipes (by ID) returned uppercase 'ID'")
 if [[ -n "$ID_RECIPE_ID" ]]; then
     log_success "Structured recipe create with explicit ingredient_id succeeded"
 else
@@ -98,11 +102,15 @@ ID_FETCH_RESP=$(api_get "$REC_URL/recipes/$ID_RECIPE_ID") || {
     smoke_summary; exit $?
 }
 
-EXPLICIT_LINKED_ID=$(extract_json "$ID_FETCH_RESP" '.ingredients[0].ingredient_id // .ingredients[0].ingredientId // .ingredients[0].IngredientID')
+EXPLICIT_LINKED_ID=$(extract_json "$ID_FETCH_RESP" '.ingredients[0].ingredient_id')
 if [[ "$EXPLICIT_LINKED_ID" == "$ID_ONLY_INGREDIENT_ID" ]]; then
     log_success "Recipe create preserved the explicit ingredient_id"
 else
-    log_fail "Recipe create did not preserve explicit ingredient_id. Expected '$ID_ONLY_INGREDIENT_ID', got '$EXPLICIT_LINKED_ID'. Response: $ID_FETCH_RESP"
+    if echo "$ID_FETCH_RESP" | jq -e '.ingredients[0] | has("IngredientID")' > /dev/null 2>&1; then
+        log_fail "CONTRACT MISMATCH: Ingredient has uppercase 'IngredientID' instead of 'ingredient_id'"
+    else
+        log_fail "Recipe create did not preserve explicit ingredient_id. Expected '$ID_ONLY_INGREDIENT_ID', got '$EXPLICIT_LINKED_ID'. Response: $ID_FETCH_RESP"
+    fi
 fi
 
 log_step "Recipes Contracts — Validation"
@@ -113,4 +121,4 @@ else
     log_fail "Recipe create did not reject missing title with a validation error"
 fi
 
-smoke_summary
+smoke_summary; exit $?

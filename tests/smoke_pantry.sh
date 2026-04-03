@@ -9,7 +9,8 @@ require_jq
 
 log_step "Pantry — Add Item"
 
-ITEM_NAME="$(unique_name "pantry onion")"
+# Higher entropy to avoid fuzzy-match collisions with stale data
+ITEM_NAME="pantry-$(date +%s%N | cut -b10-19)-$(unique_token "onion")"
 
 ADD_RESP=$(api_post "$PAN_URL/pantry/items" "$(jq -nc --arg name "$ITEM_NAME" '{name: $name, quantity: 2.0, unit: "pcs"}')" '200,201') || {
     log_fail "POST /pantry/items returned non-200. Response: $ADD_RESP"
@@ -42,23 +43,31 @@ FIRST_ITEM=$(echo "$PAN_RESP" | jq '.items[0] // empty')
 if [[ -z "$FIRST_ITEM" || "$FIRST_ITEM" == "null" ]]; then
     log_skip "No items to validate shape"
 else
-    HAS_INGREDIENT_ID=$(echo "$FIRST_ITEM" | jq 'has("ingredient_id") or has("IngredientID")')
-    HAS_QTY=$(echo "$FIRST_ITEM" | jq 'has("quantity") or has("Quantity")')
-    HAS_UNIT=$(echo "$FIRST_ITEM" | jq 'has("unit") or has("Unit")')
-    if [[ "$HAS_INGREDIENT_ID" == "true" && "$HAS_QTY" == "true" && "$HAS_UNIT" == "true" ]]; then
-        log_success "Pantry item has expected fields (ingredient_id, quantity, unit)"
-    else
-        log_fail "Pantry item missing expected fields. Item: $FIRST_ITEM"
-    fi
+    # Strict contract check: only lowercase fields allowed for these keys
+    assert_json_field "$FIRST_ITEM" "ingredient_id" "Pantry item has 'ingredient_id'"
+    assert_no_json_field "$FIRST_ITEM" "IngredientID" "Pantry item should NOT have 'IngredientID'"
+    
+    assert_json_field "$FIRST_ITEM" "name" "Pantry item has 'name'"
+    assert_no_json_field "$FIRST_ITEM" "Name" "Pantry item should NOT have 'Name'"
+
+    assert_json_field "$FIRST_ITEM" "quantity" "Pantry item has 'quantity'"
+    assert_no_json_field "$FIRST_ITEM" "Quantity" "Pantry item should NOT have 'Quantity'"
+
+    assert_json_field "$FIRST_ITEM" "unit" "Pantry item has 'unit'"
+    assert_no_json_field "$FIRST_ITEM" "Unit" "Pantry item should NOT have 'Unit'"
 fi
 
 log_step "Pantry — Added Item Visible"
 
-HAS_ADDED_ITEM=$(echo "$PAN_RESP" | jq --arg name "$ITEM_NAME" 'any(.items[]; (.name // .Name // "") == $name)')
+HAS_ADDED_ITEM=$(echo "$PAN_RESP" | jq --arg name "$ITEM_NAME" 'any(.items[]; .name == $name)')
 if [[ "$HAS_ADDED_ITEM" == "true" ]]; then
     log_success "Added pantry item appears in GET /pantry"
 else
-    log_fail "Added pantry item missing from GET /pantry. Response: $PAN_RESP"
+    if echo "$PAN_RESP" | jq --arg name "$ITEM_NAME" 'any(.items[]; .Name == $name)' | grep -q "true"; then
+        log_fail "CONTRACT MISMATCH: Added item found with uppercase 'Name' instead of 'name'"
+    else
+        log_fail "Added pantry item missing from GET /pantry. Response: $PAN_RESP"
+    fi
 fi
 
 log_step "Pantry — Validation"
@@ -69,4 +78,4 @@ else
     log_fail "Pantry did not reject missing name with a validation error"
 fi
 
-smoke_summary
+smoke_summary; exit $?

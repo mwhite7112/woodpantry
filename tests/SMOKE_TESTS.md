@@ -78,6 +78,9 @@ Recommended patterns:
 | `api_put URL BODY [status]` | Needed for update-contract checks |
 | `api_post_form URL BODY [status]` | Needed for Twilio webhook tests |
 | `assert_json_expr BODY JQ_EXPR MESSAGE` | Reusable response-shape assertions |
+| `assert_json_field BODY FIELD [MSG]` | Strict check for existence of lowercase field |
+| `assert_no_json_field BODY FIELD [MSG]` | Strict check for absence of Go-style field |
+| `extract_id_and_verify_contract BODY PREFIX` | Extract ID while alerting on case mismatch |
 | `extract_json BODY JQ_EXPR` | Cleaner ID extraction |
 | `wait_until CMD TIMEOUT_SECONDS` | Poll async jobs in Phase 2/3 |
 | `unique_name PREFIX` | Safe rerun fixture naming |
