@@ -21,8 +21,10 @@ Generated 2026-04-01. Organized by service for chunk-based delegation.
 - [x] Management UI exposed via Traefik
 - [x] Exchange topology defined (`woodpantry.topic`, topic type, durable)
 - [x] RabbitMQ credentials in cluster secrets
-- [ ] Verify publish/consume round-trip from a local Go program
-- [ ] Verify durable queues survive service restart
+- [x] Verify local publish/consume round-trip via `tests/smoke_rabbitmq.sh`
+- [x] Add a repeatable local broker-restart durability verification script (`tests/smoke_rabbitmq_restart.sh`)
+- [ ] Run broker-restart durability verification as part of local release checks and record the result when executed
+- [ ] Verify consumer-restart behavior and unacked-message redelivery for at least one real application consumer
 
 ### Smoke Tests — Per-Release Triggers
 - [ ] Add `repository_dispatch` trigger (`image-published`) to `.github/workflows/smoke.yaml`
@@ -100,7 +102,7 @@ Generated 2026-04-01. Organized by service for chunk-based delegation.
 
 ## woodpantry-ingestion
 
-> Phase 2 Python service. Recipe extraction and pantry queue ingest are implemented. Twilio is still stubbed.
+> Phase 2 Python service. Recipe extraction and pantry queue ingest are implemented. Twilio code path exists; deployment wiring and operator docs are now in place.
 
 ### W-4 — Core Service (~90% done)
 
@@ -129,25 +131,27 @@ Generated 2026-04-01. Organized by service for chunk-based delegation.
 - [x] Unit tests for dictionary client
 - [ ] Integration test for RabbitMQ publish/consume round-trip
 
-### W-5 — Twilio SMS (~5% done)
+### W-5 — Twilio SMS (~75% done)
 
 - [x] `JobRegistry` class in `app/workers/job_registry.py` (in-memory phone-to-job map with TTL)
 - [x] Twilio env vars defined in `app/config.py` (optional)
-- [ ] Implement `POST /twilio/inbound` webhook handler in `app/api/twilio.py`
-- [ ] Twilio signature validation (reject invalid with 403)
-- [ ] Parse inbound SMS body and `From` number
-- [ ] On text message: publish `pantry.ingest.requested` with raw text
-- [ ] After staged items created: send reply SMS via Twilio REST API
-- [ ] Handle `CONFIRM` reply: trigger confirm on most recent pending job for that phone number
-- [ ] Add Twilio secrets to `kubernetes/deployment.yaml`
-- [ ] Add Traefik IngressRoute for public webhook URL
+- [x] Implement `POST /twilio/inbound` webhook handler in `app/api/twilio.py`
+- [x] Twilio signature validation (reject invalid with 403)
+- [x] Parse inbound SMS body and `From` number
+- [x] On text message: publish `pantry.ingest.requested` with raw text
+- [x] After staged items created: send reply SMS via Twilio REST API
+- [x] Handle `CONFIRM` reply: trigger confirm on most recent pending job for that phone number
+- [x] Add Twilio secrets to `kubernetes/deployment.yaml`
+- [x] Add Traefik IngressRoute for public webhook URL
+- [ ] Verify the local tunnel workflow end-to-end with a real Twilio number
+- [ ] Verify the public cluster hostname end-to-end with real DNS, TLS, and `twilio-secret`
 - `DEP: W-4 pantry ingest flow` — the Twilio handler publishes `pantry.ingest.requested`, which the pantry ingest worker must consume.
 
 ---
 
 ## woodpantry-shopping-list
 
-> Phase 2 service. Initial scaffold implemented: runnable Go baseline, config parsing, migrations, `/healthz`, tests, Dockerfile, and Kubernetes manifests are in place. Generation logic, upstream clients, and repo/image publication remain.
+> Phase 2 service. Backend generation flow is implemented and now root-smoke-verified. Remaining work is around grouped/category presentation, release wiring, and broader test depth.
 
 ### W-6 — Full Service Build
 
@@ -162,29 +166,30 @@ Generated 2026-04-01. Organized by service for chunk-based delegation.
 - [x] Migration: `shopping_lists` table (id, created_at, recipe_ids)
 - [x] Migration: `shopping_list_items` table (id, list_id, ingredient_id, name, quantity, unit, category, in_pantry_qty, needed_qty)
 - [x] `sqlc.yaml` + queries for CRUD
-- [ ] Generate sqlc code
+- [x] Generate sqlc code
 
 #### HTTP Clients
-- [ ] Recipe Service client — `GET /recipes/{id}` to fetch ingredient lists
-- [ ] Pantry Service client — `GET /pantry` to fetch current stock
-- [ ] Dictionary client — `GET /ingredients/{id}/conversions` for unit normalization
+- [x] Recipe Service client — `GET /recipes/{id}` to fetch ingredient lists
+- [x] Pantry Service client — `GET /pantry` to fetch current stock
+- [x] Dictionary client — `GET /ingredients/{id}/conversions` for unit normalization
 - `DEP: woodpantry-ingredients` conversion endpoint exists; Shopping List still needs to consume it.
 
 #### Service Logic
-- [ ] Generation algorithm: fetch recipes -> aggregate ingredients -> normalize units -> diff against pantry -> group by category
-- [ ] Quantity aggregation with unit conversion (e.g. 500g + 250g = 750g)
-- [ ] Delta calculation: needed_qty = recipe_qty - pantry_qty (floor at 0)
+- [x] Generation algorithm: fetch recipes -> aggregate ingredients -> normalize units -> diff against pantry -> group by category
+- [x] Quantity aggregation with unit conversion (e.g. 500g + 250g = 750g)
+- [x] Delta calculation: needed_qty = recipe_qty - pantry_qty (floor at 0)
 - [ ] Category grouping (produce, dairy, protein, pantry, spice, liquid, other)
 
 #### API Handlers
 - [x] `GET /healthz`
-- [ ] `POST /shopping-list` — accept recipe IDs, generate and persist list
-- [ ] `GET /shopping-list/{id}` — retrieve previously generated list
+- [x] `POST /shopping-list` — accept recipe IDs, generate and persist list
+- [x] `GET /shopping-list/{id}` — retrieve previously generated list
 
 #### Kubernetes
 - [x] `kubernetes/deployment.yaml` with env vars (PORT, DB_URL, RECIPE_URL, PANTRY_URL, DICTIONARY_URL)
 - [x] `kubernetes/service.yaml`
 - [x] `kubernetes/kustomization.yaml`
+- [x] Root local stack wiring for `shopping-list` and `shopping_list` DB so smoke coverage can run from the monorepo root
 
 #### Repo & Release
 - [ ] Create the standalone `woodpantry-shopping-list` GitHub repo and push the scaffold
@@ -192,10 +197,11 @@ Generated 2026-04-01. Organized by service for chunk-based delegation.
 - [ ] Wire `woodpantry-shopping-list` into `woodhouse-infra` once the image exists
 
 #### Tests
-- [ ] Unit tests for generation algorithm (mock clients)
+- [x] Unit tests for generation algorithm (mock clients)
 - [ ] Unit tests for unit normalization logic
 - [ ] Integration tests with testcontainers-go
 - [x] Handler tests with httptest
+- [x] Root smoke test for create/fetch plus deterministic aggregation and pantry subtraction
 
 #### Dependencies
 - `DEP: woodpantry-recipes` must be deployed (fetches recipe ingredients)

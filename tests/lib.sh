@@ -10,6 +10,7 @@ export REC_URL="${REC_URL:-http://localhost:8082}"
 export PAN_URL="${PAN_URL:-http://localhost:8083}"
 export MAT_URL="${MAT_URL:-http://localhost:8084}"
 export INGEST_URL="${INGEST_URL:-http://localhost:8085}"
+export SHOP_URL="${SHOP_URL:-http://localhost:8086}"
 export SMOKE_RUN_ID="${SMOKE_RUN_ID:-smoke-$(date +%s)}"
 
 # --- Colors ---

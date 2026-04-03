@@ -1,3 +1,4 @@
 CREATE DATABASE ingredients;
 CREATE DATABASE recipes;
 CREATE DATABASE pantry;
+CREATE DATABASE shopping_list;

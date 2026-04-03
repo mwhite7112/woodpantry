@@ -29,6 +29,8 @@ tests/
 ├── lib.sh
 ├── run_all.sh
 ├── smoke_health.sh
+├── smoke_rabbitmq.sh
+├── smoke_rabbitmq_restart.sh
 ├── smoke_ingredients.sh
 ├── smoke_recipes.sh
 ├── smoke_recipes_contracts.sh
@@ -92,19 +94,22 @@ These helpers keep the smoke files short and make failures more readable.
 Run tests from lowest-level dependency to highest-level flow:
 
 1. `smoke_health.sh`
-2. `smoke_ingredients.sh`
-3. `smoke_recipes.sh`
-4. `smoke_recipes_contracts.sh`
-5. `smoke_pantry.sh`
-6. `smoke_pantry_ingest.sh`
-7. `smoke_matching.sh`
-8. `smoke_phase1_e2e.sh`
-9. Phase 2 files
-10. `smoke_phase2_e2e.sh`
-11. Phase 3 files
-12. `smoke_phase3_e2e.sh`
+2. `smoke_rabbitmq.sh`
+3. `smoke_ingredients.sh`
+4. `smoke_recipes.sh`
+5. `smoke_recipes_contracts.sh`
+6. `smoke_pantry.sh`
+7. `smoke_pantry_ingest.sh`
+8. `smoke_matching.sh`
+9. `smoke_phase1_e2e.sh`
+10. Phase 2 files
+11. `smoke_phase2_e2e.sh`
+12. Phase 3 files
+13. `smoke_phase3_e2e.sh`
 
 This keeps failures local. If Matching fails because Pantry changed its response shape, you should see Pantry fail first.
+
+`smoke_rabbitmq_restart.sh` is intentionally not part of the default `run_all.sh` sequence because it restarts the local broker container. Run it explicitly after the normal suite when you want restart-level durability evidence.
 
 ## Comprehensive Test Matrix
 
@@ -315,6 +320,49 @@ Implementation note:
 
 - This file should use polling helpers rather than fixed sleeps.
 
+### `smoke_rabbitmq.sh`
+
+Purpose: prove the broker and current event wiring are alive before deeper ingest tests run.
+
+Assertions:
+
+- RabbitMQ management API is reachable.
+- `woodpantry.topic` exists and is durable.
+- Core queues currently expected in local Phase 2 work exist and are durable.
+- A direct publish to `woodpantry.topic` can be routed to a temporary verification queue and read back.
+- `POST /pantry/items` emits a persistent `pantry.updated` event that can be observed from a temporary verification queue.
+
+Implementation note:
+
+- This file is the low-cost local proof for broker wiring.
+- It does not prove broker persistence across a RabbitMQ container restart by itself; that restart check remains an explicit ops follow-up.
+
+### `smoke_rabbitmq_restart.sh`
+
+Purpose: prove a restart-oriented local durability scenario without relying on application consumers: a durable queue and a persistent message survive a targeted RabbitMQ container restart without removing volumes.
+
+Assertions:
+
+- A temporary durable verification queue can be declared and bound before restart.
+- A persistent message can be published to that queue before restart.
+- The local `rabbitmq` container can be restarted through Compose.
+- After broker recovery, the same queue still exists and remains durable.
+- The queued message is still present after restart, with the same payload and `delivery_mode = 2`.
+
+Runbook:
+
+```bash
+make dev
+make wait-healthy
+make test-rabbitmq-restart
+```
+
+Implementation note:
+
+- This is an opt-in, disruptive check and is intentionally excluded from `run_all.sh`.
+- It proves broker-level durable storage across restart.
+- It does not prove consumer-restart behavior, redelivery of unacked in-flight messages, or application-specific replay semantics.
+
 ### `smoke_ingestion_twilio.sh`
 
 Purpose: protect the SMS ingestion contract.
@@ -340,9 +388,9 @@ Fixture setup:
 Assertions:
 
 - `POST /shopping-list` returns a persisted list ID.
-- Aggregated ingredient quantities are deduplicated.
-- Pantry-covered items are omitted or reduced according to the service contract.
-- `GET /shopping-list/:id` returns the same grouped result.
+- The fixture creates two recipes with the same ingredient so the generated list deduplicates into one aggregated item.
+- That aggregated item reports `quantity_needed = 3.5`, `quantity_in_pantry = 1.0`, and `quantity_to_buy = 2.5` for the deterministic `cup` fixture.
+- `GET /shopping-list/:id` returns the same persisted item and quantities as `POST /shopping-list`.
 
 ### `smoke_phase2_e2e.sh`
 
