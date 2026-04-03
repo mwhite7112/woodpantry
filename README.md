@@ -221,6 +221,7 @@ flowchart LR
 ### Pantry and Recipe Ingest Architecture
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#f5f5f5', 'mainBkg': '#f5f5f5', 'secondaryColor': '#ebebeb', 'tertiaryColor': '#e3e3e3', 'lineColor': '#555555', 'primaryTextColor': '#222222', 'secondaryTextColor': '#222222', 'tertiaryTextColor': '#222222', 'noteBkgColor': '#ebebeb', 'noteTextColor': '#222222', 'actorBkg': '#ebebeb', 'actorBorder': '#999999', 'actorTextColor': '#222222', 'signalColor': '#555555', 'signalTextColor': '#222222', 'labelBoxBkgColor': '#ebebeb', 'labelBoxBorderColor': '#999999', 'labelTextColor': '#222222', 'loopTextColor': '#222222' } } }%%
 sequenceDiagram
     participant User
     participant Recipes as Recipe Service
@@ -371,6 +372,7 @@ See:
 
 ## Related Docs
 
+- [`STATUS.md`](./STATUS.md): current user-journey and service status dashboard
 - [`CLAUDE.md`](./CLAUDE.md): root engineering conventions
 - [`TODO.md`](./TODO.md): implementation backlog
 - [`BUGS.md`](./BUGS.md): smoke-test-discovered bugs only
