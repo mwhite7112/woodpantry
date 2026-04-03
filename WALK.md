@@ -2,19 +2,22 @@
 
 **Phase Goal**: Remove all friction from pantry updates. Make the SMS flow work end-to-end. Introduce RabbitMQ as the event backbone. Add shopping list generation.
 
-**Status (2026-04-01)**:
+**Status (2026-04-03)**:
 - [x] W-1 is implemented in infra code: RabbitMQ, durable queues, persistence, and management ingress all exist in `../woodhouse-infra`.
 - [x] W-2 through W-4 are partially to mostly implemented in application code.
 - [x] `woodpantry-ingestion` now has a passing local Python test suite.
 - [ ] W-5 and W-7 are not implemented beyond stubs/placeholders.
-- [~] W-6 has a runnable service scaffold but not the generation logic.
+- [~] W-6 backend generation is implemented and locally verified by service integration tests plus root smoke coverage; category-grouped responses and release wiring still remain.
 
 **Notes**:
 - `woodpantry-recipes` already uses async queue-based ingest.
 - `woodpantry-pantry` still also supports the older in-service OpenAI ingest path; the queue-based pantry path exists in `woodpantry-ingestion`, but the pantry service has not been fully refactored off the direct path.
 - `woodpantry-pantry` now exposes `POST /pantry/ingest/{job_id}/stage` for queue-driven pantry staging.
 - `woodpantry-ingestion` is now wired into `../woodhouse-infra/apps/woodpantry`, but deploy success still depends on a published image tag being available.
-- The pantry cluster deployment currently does not inject `RABBITMQ_URL`, so `pantry.updated` publishing is not enabled by the cluster manifests yet.
+- The pantry cluster deployment now injects `RABBITMQ_URL`, so `pantry.updated` publishing is enabled by the cluster manifests when the secret contains `rabbitmq_url`.
+- Local broker proof now exists in `tests/smoke_rabbitmq.sh`: it verifies exchange/queue durability flags, direct publish/get, and `pantry.updated` routing.
+- Local broker-restart proof now also exists in `tests/smoke_rabbitmq_restart.sh`: it restarts the local `rabbitmq` container without removing volumes and verifies that a durable queue plus a persistent message survive the restart. This passed locally on 2026-04-03 via `make test-rabbitmq-restart`.
+- Consumer-restart behavior is still an explicit follow-up; the current repo automation does not yet prove unacked-message redelivery or application-specific replay after restarting a real consumer.
 
 **Exit Criteria**:
 - You can text a grocery list to a Twilio number and have it show up in your pantry after confirming
@@ -60,8 +63,9 @@
 
 **Acceptance Criteria**:
 - [x] RabbitMQ management UI accessible
-- [ ] Test publish/consume round-trip works from a local Go program
-- [x] No messages lost on service restart (durable queues)
+- [x] Local publish/consume round-trip works via `tests/smoke_rabbitmq.sh`
+- [x] Durable queue plus persistent message survive a targeted local broker restart via `tests/smoke_rabbitmq_restart.sh`
+- [ ] Durable behavior across a real consumer restart is directly re-verified
 
 ---
 
@@ -79,7 +83,7 @@
 - [x] `RABBITMQ_URL` env var, optional — if not set, skip publishing (preserves Phase 1 behaviour)
 
 **Acceptance Criteria**:
-- [ ] A pantry item update publishes a `pantry.updated` message observable in the management UI
+- [x] A pantry item update publishes a `pantry.updated` message observable from a temporary verification queue (`tests/smoke_rabbitmq.sh`)
 - [x] Service continues operating normally if RabbitMQ is down
 
 ---
@@ -165,17 +169,17 @@
 **Deliverables**:
 - [x] DB schema: `shopping_lists`, `shopping_list_items` tables (for persisting generated lists)
 - [x] Runnable Go scaffold: entrypoint, env parsing, migrations, `/healthz`, Dockerfile, tests, and Kubernetes manifests
-- [ ] `POST /shopping-list` — accept array of recipe IDs; fetch each recipe's ingredients from Recipe Service; aggregate quantities per ingredient; diff against Pantry Service current state; persist and return list
-- [ ] `GET /shopping-list/:id` — retrieve a previously generated list
+- [x] `POST /shopping-list` — accept array of recipe IDs; fetch each recipe's ingredients from Recipe Service; aggregate quantities per ingredient; diff against Pantry Service current state; persist and return list
+- [x] `GET /shopping-list/:id` — retrieve a previously generated list
 - [ ] Items grouped by ingredient category in response
-- [ ] Quantity aggregation handles unit normalization (e.g. 500g + 250g = 750g) using unit conversion data from Dictionary
-- [ ] HTTP clients for Recipe Service, Pantry Service, Ingredient Dictionary
+- [x] Quantity aggregation handles unit normalization (e.g. 500g + 250g = 750g) using unit conversion data from Dictionary
+- [x] HTTP clients for Recipe Service, Pantry Service, Ingredient Dictionary
 
-  `woodpantry-shopping-list` now has a runnable Go scaffold with `/healthz`, env parsing, migrations, and Kubernetes manifests. Generation endpoints and upstream clients are still unimplemented.
+  `woodpantry-shopping-list` now has runnable generation endpoints, upstream clients, migrations, and persisted list retrieval. Root smoke coverage verifies `POST /shopping-list` and `GET /shopping-list/{id}` against live recipe, pantry, and dictionary dependencies in the local stack.
   It also still needs to be created as a standalone GitHub repo and published to GHCR before GitOps can deploy it.
 
 **Acceptance Criteria**:
-- [ ] Shopping list for 3 recipes correctly aggregates quantities across all recipes
+- [x] Shopping list generation is smoke-verified for overlapping recipe ingredients with pantry subtraction
 - [ ] Items already in pantry at sufficient quantity do not appear on the list
 - [ ] Items partially in pantry show the delta quantity needed
 - [ ] Response groups items by category (produce, dairy, protein, pantry, spice, etc.)

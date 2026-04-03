@@ -12,7 +12,7 @@ dev: dev-down ## Start the full local stack (rebuild images)
 	$(COMPOSE) up --build -d
 	@echo ""
 	@echo "Stack is starting. Run 'make logs' to watch output."
-	@echo "Services: ingredients=:8081  recipes=:8082  pantry=:8083  matching=:8084  ingestion=:8085"
+	@echo "Services: ingredients=:8081  recipes=:8082  pantry=:8083  matching=:8084  ingestion=:8085  shopping-list=:8086"
 	@echo "Postgres=:5432  RabbitMQ=:5672 (mgmt=:15672)"
 
 .PHONY: dev-up
@@ -47,6 +47,10 @@ test-only: wait-healthy ## Run smoke tests against an already-running stack
 .PHONY: test-health
 test-health: ## Run only health-check smoke tests
 	@bash $(TESTS_DIR)/smoke_health.sh
+
+.PHONY: test-rabbitmq-restart
+test-rabbitmq-restart: ## Verify durable queue/message survival across a RabbitMQ restart
+	@bash $(TESTS_DIR)/smoke_rabbitmq_restart.sh
 
 .PHONY: wait-healthy
 wait-healthy: ## Wait for all services to pass health checks (up to 120s)

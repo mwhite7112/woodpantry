@@ -70,6 +70,22 @@ woodpantry/
 - Ingest flows use staged commit: raw input -> extraction -> staged result -> confirm -> commit.
 - Go services use `chi` + `sqlc`; no ORM.
 
+## Twilio Webhook Operations
+
+`woodpantry-ingestion` is the only public SMS ingress. The deployable webhook path is `POST /twilio/inbound`.
+
+Route model:
+
+- Local development: Twilio -> public tunnel -> `http://127.0.0.1:8085/twilio/inbound`
+- Cluster: Twilio -> Traefik public host -> `ingestion` Service -> ingestion pod -> `/twilio/inbound`
+
+Operator requirements:
+
+- Local credentials belong in `local/.env` using the `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` variables documented in `local/.env.example`.
+- Cluster credentials belong in the `twilio-secret` Secret in the `woodpantry` namespace.
+- The public cluster route is defined in [`woodpantry-ingestion/kubernetes/ingressroute.yaml`](/home/maxw/dev/woodpantry/woodpantry-ingestion/kubernetes/ingressroute.yaml).
+- Live Twilio usage stays out of automated tests; manual verification uses a tunnel or the public cluster host.
+
 ## Complete Architecture
 
 ### System Context
@@ -336,17 +352,25 @@ From the repo root:
 
 ```bash
 make dev
+make dev-restart
 make dev-down
 make test
 make test-only
+make test-rabbitmq-restart
+bash tests/smoke_rabbitmq.sh
+bash tests/smoke_rabbitmq_restart.sh
 ```
 
 What those do:
 
-- `make dev`: start the local stack
+- `make dev`: start the local stack, including `woodpantry-shopping-list` on `:8086`
+- `make dev-restart`: rebuild and restart the local stack from the root `Makefile`
 - `make dev-down`: tear the stack down
 - `make test`: start stack, run smoke tests, tear down
 - `make test-only`: run smoke tests against an already-running stack
+- `make test-rabbitmq-restart`: run the opt-in broker restart durability verification from the root `Makefile`
+- `bash tests/smoke_rabbitmq.sh`: prove local RabbitMQ exchange/queue wiring and `pantry.updated` routing without running the full suite
+- `bash tests/smoke_rabbitmq_restart.sh`: restart the local broker and verify a durable queue plus a persistent message survive without resetting volumes
 
 ## Testing Strategy
 

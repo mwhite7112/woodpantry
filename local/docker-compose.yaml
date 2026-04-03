@@ -117,6 +117,9 @@ services:
       RECIPE_URL: http://recipes:8080
       PANTRY_URL: http://pantry:8080
       LOG_LEVEL: info
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
     ports:
       - "8085:8080"
     depends_on:
@@ -124,6 +127,30 @@ services:
       - recipes
       - pantry
       - rabbitmq
+
+  shopping-list:
+    build:
+      context: ../woodpantry-shopping-list
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      PORT: 8080
+      DB_URL: postgres://${POSTGRES_USER:-woodpantry}:${POSTGRES_PASSWORD:-woodpantry}@db:5432/shopping_list?sslmode=disable
+      RECIPE_URL: http://recipes:8080
+      PANTRY_URL: http://pantry:8080
+      DICTIONARY_URL: http://ingredients:8080
+      LOG_LEVEL: info
+    ports:
+      - "8086:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      ingredients:
+        condition: service_started
+      recipes:
+        condition: service_started
+      pantry:
+        condition: service_started
 
 volumes:
   woodpantry-db-data:

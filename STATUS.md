@@ -23,12 +23,12 @@ Status meanings:
 |---|---|---|---|
 | Manually add pantry items | Green | Core pantry CRUD flow is working locally and contract-hardened | `tests/smoke_pantry.sh` |
 | Free-text pantry ingest | Green | Staged ingest and confirm flow work through the Pantry Service | `tests/smoke_pantry_ingest.sh`, `CRAWL.md` |
-| SMS pantry ingest | Red | Twilio webhook, confirmation SMS, and `CONFIRM` flow are not implemented | `WALK.md`, `TODO.md` |
+| SMS pantry ingest | Yellow | Twilio webhook flow exists and deployment wiring/docs now cover local tunnel and cluster routing, but it still needs manual end-to-end verification with real credentials and DNS | `woodpantry-ingestion/README.md`, `WALK.md`, `TODO.md` |
 | Structured recipe create | Green | Recipe CRUD contract has been normalized to lowercase API DTOs and smoke-tested | `tests/smoke_recipes.sh` |
-| Recipe free-text ingest | Green | Async queue-based ingest is implemented and locally verified | `WALK.md`, `TODO.md` |
+| Recipe free-text ingest | Green | Async queue-based ingest is implemented; local queue publish/consume and staged job progression are smoke-covered, and broker-restart durability passed locally on 2026-04-03 | `tests/smoke_recipes_ingest.sh`, `tests/smoke_rabbitmq.sh`, `tests/smoke_rabbitmq_restart.sh`, `WALK.md` |
 | View recipe details | Green | `GET /recipes/{id}` contract regression was fixed and verified | `tests/smoke_recipes.sh`, `BUGS.md` |
 | Match pantry to recipes | Green | Core deterministic matching works against pantry + recipe state | `tests/smoke_matching.sh`, `CRAWL.md` |
-| Shopping list generation | Red | Service scaffold exists, but generation logic and endpoints are not complete | `WALK.md`, `TODO.md` |
+| Shopping list generation | Green | Shopping list create and fetch are smoke-verified against live recipe, pantry, and dictionary dependencies, including aggregation and pantry subtraction | `tests/smoke_shopping_list.sh`, `WALK.md` |
 | Frontend cook flow | Red | No deployed or usable UI yet | `RUN.md` |
 | Frontend grocery flow | Red | Depends on shopping list + UI work that is not complete | `RUN.md` |
 | Receipt photo ingest | Red | Phase 3 feature; not implemented | `RUN.md` |
@@ -39,7 +39,7 @@ Status meanings:
 | Phase | Status | Notes |
 |---|---|---|
 | Phase 1: Core Loop | Yellow | Core features are working locally, but cluster ingress/metrics/dashboard work is still incomplete |
-| Phase 2: Queue + Ingestion + Shopping | Yellow | RabbitMQ and ingestion core exist; Twilio and shopping list remain the major gaps |
+| Phase 2: Queue + Ingestion + Shopping | Yellow | RabbitMQ wiring is smoke-verified and broker-restart durability passed locally on 2026-04-03; shopping-list generation is smoke-verified, while Twilio and consumer-restart proof still remain open |
 | Phase 3: AI Layer + Frontend | Red | Intentionally deferred; no end-to-end user-facing Phase 3 flow exists yet |
 
 ## Service Status
@@ -50,8 +50,8 @@ Status meanings:
 | `woodpantry-recipes` | Green | Recipe CRUD and async ingest are working locally; ingest response contracts are not fully normalized yet |
 | `woodpantry-pantry` | Green | Pantry CRUD and staged ingest are working locally; read-path name enrichment now depends on Dictionary availability |
 | `woodpantry-matching` | Green | Phase 1 matching flow is working; Phase 2 cache invalidation and Phase 3 semantic ranking are still open |
-| `woodpantry-ingestion` | Yellow | Core queue-based extraction works; Twilio path is still mostly stubbed |
-| `woodpantry-shopping-list` | Red | Scaffold exists, but the service is not functionally complete |
+| `woodpantry-ingestion` | Yellow | Core queue-based extraction works and Twilio env/ingress wiring is in place; public DNS, secrets, and manual live verification still remain |
+| `woodpantry-shopping-list` | Green | `POST /shopping-list` and `GET /shopping-list/{id}` are implemented and smoke-verified for aggregation plus pantry subtraction |
 | `woodpantry-openapi` | Red | Docs-only; spec not written |
 | `woodpantry-meal-plan` | Red | Not started |
 | `woodpantry-ui` | Red | Not started |
@@ -59,8 +59,8 @@ Status meanings:
 ## Current Priorities
 
 1. Finish Twilio SMS pantry ingest in `woodpantry-ingestion`
-2. Build the actual shopping list generation flow in `woodpantry-shopping-list`
-3. Verify and harden RabbitMQ publish/consume behavior and cluster event wiring
+2. Keep using the restart-oriented RabbitMQ verification, then close the remaining consumer-restart and downstream-consumer gaps
+3. Finish category-grouped shopping-list responses and release wiring
 4. Write the OpenAPI spec once Phase 2 contracts are stable
 
 ## Recently Verified
@@ -68,19 +68,25 @@ Status meanings:
 - Recipe CRUD response contracts are now lowercase and smoke-test compatible
 - Pantry list response contract now returns lowercase fields and `name`
 - Root smoke suite has been hardened to catch JSON contract regressions explicitly
-- `make dev-restart` and `make test-only` were run successfully on 2026-04-03
+- `make dev-restart` and `make wait-healthy` were run successfully on 2026-04-03
+- `tests/smoke_rabbitmq.sh` passed on 2026-04-03, proving local broker publish/get and `pantry.updated` routing
+- `make test-rabbitmq-restart` passed on 2026-04-03, proving that a durable queue plus a persistent message survived a targeted local RabbitMQ restart without resetting volumes
+- Recipe ingest queue flow was rechecked on 2026-04-03: `POST /recipes/ingest` produced a staged job and both RabbitMQ recipe queues showed matching publish/ack activity
+- Shopping list generation is now root-smoke-covered via `tests/smoke_shopping_list.sh`, verifying persisted create/fetch plus a deterministic aggregation and pantry-delta fixture
 
 ## Known Gaps
 
-- Twilio webhook flow is still not implemented
-- Shopping list service is still scaffold-only
+- Twilio flow still needs a real-world manual verification pass against a tunnel and the cluster hostname
+- Cluster Twilio ingress depends on real DNS and TLS for the public SMS host
 - OpenAPI spec is still missing
 - Cluster ingress, metrics scraping, and dashboard work are not fully complete for the whole system
+- Consumer-restart behavior, redelivery of unacked in-flight messages, and downstream service-specific replay are still not directly proven by a repo check
 - Some recipe ingest/job endpoints may still expose internal/sqlc-shaped payloads because CRUD endpoints were prioritized first
 
 ## Risks And Notes
 
 - `GET /pantry` now enriches `name` using the Ingredient Dictionary. That keeps the API usable, but it adds read-path coupling that should be cached and documented.
+- Broker-restart durability has been verified for the local stack used on 2026-04-03 via `make test-rabbitmq-restart`; other environments still need the same check run locally.
 - `BUGS.md` should remain limited to smoke-test-discovered regressions only.
 - `TODO.md` is the backlog; this file is the current-state dashboard.
 

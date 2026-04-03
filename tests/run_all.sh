@@ -19,6 +19,7 @@ if [[ $# -gt 0 ]]; then
 else
     TEST_FILES=(
         "$SCRIPT_DIR/smoke_health.sh"
+        "$SCRIPT_DIR/smoke_rabbitmq.sh"
         "$SCRIPT_DIR/smoke_ingredients.sh"
         "$SCRIPT_DIR/smoke_ingredients_contracts.sh"
         "$SCRIPT_DIR/smoke_recipes.sh"
@@ -27,6 +28,7 @@ else
         "$SCRIPT_DIR/smoke_pantry.sh"
         "$SCRIPT_DIR/smoke_pantry_ingest.sh"
         "$SCRIPT_DIR/smoke_matching.sh"
+        "$SCRIPT_DIR/smoke_shopping_list.sh"
         "$SCRIPT_DIR/smoke_phase1_e2e.sh"
     )
 fi
