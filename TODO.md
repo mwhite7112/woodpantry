@@ -77,6 +77,10 @@ Generated 2026-04-01. Organized by service for chunk-based delegation.
 - [x] Graceful handling if RabbitMQ unavailable
 - [x] `RABBITMQ_URL` optional — skips publishing if not set
 
+### Phase 2 Follow-Up
+- [ ] Add a small in-memory TTL cache for Ingredient Dictionary lookups used to enrich pantry item `name` fields on `GET /pantry` and `POST /pantry/items`
+- [ ] Document the Pantry Service's Dictionary-backed `name` enrichment behavior and failure mode in `README.md` and `CLAUDE.md`
+
 ---
 
 ## woodpantry-matching

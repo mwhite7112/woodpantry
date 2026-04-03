@@ -158,10 +158,52 @@ assert_json_expr() {
     fi
 }
 
+assert_json_field() {
+    local body="$1"
+    local field="$2"
+    local message="${3:-Response should have field '$field'}"
+
+    if echo "$body" | jq -e "has(\"$field\")" > /dev/null 2>&1; then
+        log_success "$message"
+    else
+        log_fail "$message (field '$field' missing). Response: $body"
+    fi
+}
+
+assert_no_json_field() {
+    local body="$1"
+    local field="$2"
+    local message="${3:-Response should NOT have field '$field'}"
+
+    if echo "$body" | jq -e "has(\"$field\")" > /dev/null 2>&1; then
+        log_fail "$message (field '$field' present). Response: $body"
+    else
+        log_success "$message"
+    fi
+}
+
 has_json_path() {
     local body="$1"
     local expr="$2"
     echo "$body" | jq -e "$expr" > /dev/null 2>&1
+}
+
+# Usage: extract_id_and_verify_contract BODY ERROR_MSG_PREFIX
+# Returns ID to stdout, logs FAIL if uppercase 'ID' found.
+extract_id_and_verify_contract() {
+    local body="$1"
+    local prefix="$2"
+    local id
+    id=$(echo "$body" | jq -r '.id // empty')
+    if [[ -z "$id" ]]; then
+        if echo "$body" | jq -e 'has("ID")' > /dev/null 2>&1; then
+            # Output error to stderr so it doesn't pollute the captured ID
+            echo -e "${RED}FAIL: $prefix (found uppercase 'ID' instead of 'id')${NC}" >&2
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+            id=$(echo "$body" | jq -r '.ID')
+        fi
+    fi
+    echo "$id"
 }
 
 # --- Summary ---
@@ -171,6 +213,6 @@ smoke_summary() {
     echo -e "  PASS: ${GREEN}${PASS_COUNT}${NC}  FAIL: ${RED}${FAIL_COUNT}${NC}  SKIP: ${YELLOW}${SKIP_COUNT}${NC}"
     echo -e "========================================="
     if [[ "$FAIL_COUNT" -gt 0 ]]; then
-        return 1
+        exit 1
     fi
 }

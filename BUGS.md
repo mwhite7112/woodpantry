@@ -31,16 +31,25 @@
 
 - **Symptom**: `GET /recipes/{id}` returns fields like `ID` and `Title`, causing the smoke suite's fetch check to see an empty lowercase `title`.
 - **Error**: Smoke test `smoke_recipes.sh` created a recipe successfully, then failed on fetch because the response did not expose the documented lowercase JSON field names.
-- **Root Cause**: `woodpantry-recipes` appears to serialize embedded sqlc-generated structs directly in the recipe detail response, so fields without JSON tags are emitted with Go-style names.
-- **Required Fix**: Update `woodpantry-recipes` `GET /recipes/{id}` response shaping to return explicit API DTOs with stable lowercase JSON fields matching `README.md`.
+- **Root Cause**: `woodpantry-recipes` was serializing embedded sqlc-generated structs directly in the recipe detail response.
+- **Required Fix**: Update `woodpantry-recipes` `GET /recipes/{id}` response shaping to return explicit API DTOs with stable lowercase JSON fields.
 - **Smoke Test**: `tests/smoke_recipes.sh` — "Recipes — Fetch Recipe" check.
-- **Status**: OPEN
+- **Status**: CLOSED (fixed 2026-04-02; verified with hardened smoke suite)
 
 ## [2026-04-02] Pantry list endpoint omits documented `name` field and returns sqlc-style keys
 
-- **Symptom**: `GET /pantry` returns items like `{"ID":"...","IngredientID":"...","Quantity":2,"Unit":"pcs"}` without the documented lowercase field names or `name`.
-- **Error**: Smoke test `smoke_pantry.sh` could confirm the wrapper shape and quantities, but could not find the added pantry item by name because the response omitted `name`.
-- **Root Cause**: `woodpantry-pantry` appears to serialize sqlc-generated `PantryItem` structs directly from `GET /pantry`; those structs have no JSON tags and do not include a display name field.
-- **Required Fix**: Update `woodpantry-pantry` `GET /pantry` to return explicit API DTOs with stable lowercase JSON fields and either include the documented ingredient `name` or correct the docs and dependent callers if `name` is intentionally unavailable.
-- **Smoke Test**: `tests/smoke_pantry.sh` — "Pantry — Response Contract" and "Pantry — Added Item Visible" checks.
-- **Status**: OPEN
+- **Symptom**: `GET /pantry` returns items like `{"ID":"...","IngredientID":"..."}` without lowercase fields or `name`.
+- **Error**: Smoke test `smoke_pantry.sh` failed to find added pantry item by name.
+- **Root Cause**: `woodpantry-pantry` was serializing sqlc-generated `PantryItem` structs directly.
+- **Required Fix**: Update `woodpantry-pantry` `GET /pantry` to return explicit API DTOs with stable lowercase JSON fields and the documented `name`.
+- **Smoke Test**: `tests/smoke_pantry.sh` — "Pantry — Response Contract" check.
+- **Status**: CLOSED (fixed 2026-04-02; verified with hardened smoke suite)
+
+## [2026-04-02] Recipe Create and List endpoints return sqlc-style field names
+
+- **Symptom**: `POST /recipes` and `GET /recipes` return Go-style uppercase fields (e.g., `ID`, `Title`), which breaks strict contract consumers.
+- **Error**: Hardened smoke test `smoke_recipes.sh` logs `CONTRACT MISMATCH` when capturing the recipe ID from a `POST` response.
+- **Root Cause**: `woodpantry-recipes` continues to return raw DB/sqlc structs in the list and create handlers.
+- **Required Fix**: Update `handleCreateRecipe` and `handleListRecipes` in `woodpantry-recipes/internal/api/handlers.go` to return explicit lowercase API DTOs instead of raw DB/sqlc structs.
+- **Smoke Test**: `tests/smoke_recipes.sh` — "Recipes — Create Recipe" check.
+- **Status**: CLOSED (fixed 2026-04-02; verified by rerunning the hardened local smoke suite after recipe CRUD DTO normalization)

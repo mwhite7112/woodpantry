@@ -7,7 +7,9 @@ source "$SCRIPT_DIR/lib.sh"
 
 require_jq
 
-INGREDIENT_NAME="$(unique_token "zz-smoke-ingredient")"
+# Using more entropy to avoid fuzzy-match collisions with stale data
+# Ingredients threshold is 0.8, so near-duplicates often collide.
+INGREDIENT_NAME="zz-smoke-$(date +%s%N | cut -b10-19)-$(unique_token "ing")"
 
 log_step "Ingredients — Resolve and Fetch"
 
