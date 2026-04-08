@@ -357,8 +357,10 @@ make dev-down
 make test
 make test-only
 make test-rabbitmq-restart
+make test-rabbitmq-redelivery
 bash tests/smoke_rabbitmq.sh
 bash tests/smoke_rabbitmq_restart.sh
+bash tests/smoke_rabbitmq_redelivery.sh
 ```
 
 What those do:
@@ -369,8 +371,21 @@ What those do:
 - `make test`: start stack, run smoke tests, tear down
 - `make test-only`: run smoke tests against an already-running stack
 - `make test-rabbitmq-restart`: run the opt-in broker restart durability verification from the root `Makefile`
+- `make test-rabbitmq-redelivery`: run the opt-in consumer crash/redelivery verification from the root `Makefile`
 - `bash tests/smoke_rabbitmq.sh`: prove local RabbitMQ exchange/queue wiring and `pantry.updated` routing without running the full suite
 - `bash tests/smoke_rabbitmq_restart.sh`: restart the local broker and verify a durable queue plus a persistent message survive without resetting volumes
+- `bash tests/smoke_rabbitmq_redelivery.sh`: crash a temporary consumer before `ack` and verify the same message is redelivered to a replacement consumer
+
+RabbitMQ verification is intentionally split by scope:
+
+- `tests/smoke_rabbitmq.sh`: broker reachability, topology, direct publish/get, and `pantry.updated` routing
+- `tests/smoke_rabbitmq_restart.sh`: broker durability across a RabbitMQ container restart
+- `tests/smoke_rabbitmq_redelivery.sh`: unacked-message requeue and redelivery after a consumer process crash
+
+What remains outside these proofs:
+
+- restart/reconnect behavior of any specific WoodPantry service container or Kubernetes pod
+- handler idempotency and duplicate-safe replay of real application messages
 
 ## Testing Strategy
 

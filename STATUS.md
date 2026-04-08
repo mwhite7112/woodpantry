@@ -25,7 +25,7 @@ Status meanings:
 | Free-text pantry ingest | Green | Staged ingest and confirm flow work through the Pantry Service | `tests/smoke_pantry_ingest.sh`, `CRAWL.md` |
 | SMS pantry ingest | Yellow | Twilio webhook flow exists and deployment wiring/docs now cover local tunnel and cluster routing, but it still needs manual end-to-end verification with real credentials and DNS | `woodpantry-ingestion/README.md`, `WALK.md`, `TODO.md` |
 | Structured recipe create | Green | Recipe CRUD contract has been normalized to lowercase API DTOs and smoke-tested | `tests/smoke_recipes.sh` |
-| Recipe free-text ingest | Green | Async queue-based ingest is implemented; local queue publish/consume and staged job progression are smoke-covered, and broker-restart durability passed locally on 2026-04-03 | `tests/smoke_recipes_ingest.sh`, `tests/smoke_rabbitmq.sh`, `tests/smoke_rabbitmq_restart.sh`, `WALK.md` |
+| Recipe free-text ingest | Green | Async queue-based ingest is implemented; local queue publish/consume and staged job progression are smoke-covered, and separate broker-restart plus consumer-redelivery RabbitMQ proofs both passed locally on 2026-04-03 | `tests/smoke_recipes_ingest.sh`, `tests/smoke_rabbitmq.sh`, `tests/smoke_rabbitmq_restart.sh`, `tests/smoke_rabbitmq_redelivery.sh`, `WALK.md` |
 | View recipe details | Green | `GET /recipes/{id}` contract regression was fixed and verified | `tests/smoke_recipes.sh`, `BUGS.md` |
 | Match pantry to recipes | Green | Core deterministic matching works against pantry + recipe state | `tests/smoke_matching.sh`, `CRAWL.md` |
 | Shopping list generation | Green | Shopping list create and fetch are smoke-verified against live recipe, pantry, and dictionary dependencies, including aggregation and pantry subtraction | `tests/smoke_shopping_list.sh`, `WALK.md` |
@@ -39,7 +39,7 @@ Status meanings:
 | Phase | Status | Notes |
 |---|---|---|
 | Phase 1: Core Loop | Yellow | Core features are working locally, but cluster ingress/metrics/dashboard work is still incomplete |
-| Phase 2: Queue + Ingestion + Shopping | Yellow | RabbitMQ wiring is smoke-verified and broker-restart durability passed locally on 2026-04-03; shopping-list generation is smoke-verified, while Twilio and consumer-restart proof still remain open |
+| Phase 2: Queue + Ingestion + Shopping | Yellow | RabbitMQ wiring, broker-restart durability, and consumer redelivery after an unacked crash all passed locally on 2026-04-03; shopping-list generation is smoke-verified, while Twilio and real service restart/replay proof still remain open |
 | Phase 3: AI Layer + Frontend | Red | Intentionally deferred; no end-to-end user-facing Phase 3 flow exists yet |
 
 ## Service Status
@@ -59,7 +59,7 @@ Status meanings:
 ## Current Priorities
 
 1. Finish Twilio SMS pantry ingest in `woodpantry-ingestion`
-2. Keep using the restart-oriented RabbitMQ verification, then close the remaining consumer-restart and downstream-consumer gaps
+2. Keep using the RabbitMQ restart/redelivery checks, then close the remaining real-consumer restart and downstream-consumer gaps
 3. Finish category-grouped shopping-list responses and release wiring
 4. Write the OpenAPI spec once Phase 2 contracts are stable
 
@@ -71,6 +71,7 @@ Status meanings:
 - `make dev-restart` and `make wait-healthy` were run successfully on 2026-04-03
 - `tests/smoke_rabbitmq.sh` passed on 2026-04-03, proving local broker publish/get and `pantry.updated` routing
 - `make test-rabbitmq-restart` passed on 2026-04-03, proving that a durable queue plus a persistent message survived a targeted local RabbitMQ restart without resetting volumes
+- `make test-rabbitmq-redelivery` passed on 2026-04-03, proving that an unacked message was requeued and redelivered with `redelivered = true` after a probe consumer process crashed before `ack`
 - Recipe ingest queue flow was rechecked on 2026-04-03: `POST /recipes/ingest` produced a staged job and both RabbitMQ recipe queues showed matching publish/ack activity
 - Shopping list generation is now root-smoke-covered via `tests/smoke_shopping_list.sh`, verifying persisted create/fetch plus a deterministic aggregation and pantry-delta fixture
 
@@ -80,13 +81,15 @@ Status meanings:
 - Cluster Twilio ingress depends on real DNS and TLS for the public SMS host
 - OpenAPI spec is still missing
 - Cluster ingress, metrics scraping, and dashboard work are not fully complete for the whole system
-- Consumer-restart behavior, redelivery of unacked in-flight messages, and downstream service-specific replay are still not directly proven by a repo check
+- A real WoodPantry service container or pod restart has not yet been directly proven to reconnect, resume consuming, and safely replay in-flight messages
+- Downstream service-specific replay behavior and handler idempotency are still not directly proven by a repo check
 - Some recipe ingest/job endpoints may still expose internal/sqlc-shaped payloads because CRUD endpoints were prioritized first
 
 ## Risks And Notes
 
 - `GET /pantry` now enriches `name` using the Ingredient Dictionary. That keeps the API usable, but it adds read-path coupling that should be cached and documented.
 - Broker-restart durability has been verified for the local stack used on 2026-04-03 via `make test-rabbitmq-restart`; other environments still need the same check run locally.
+- Consumer-side redelivery has been verified for the local stack used on 2026-04-03 via `make test-rabbitmq-redelivery`; this proof uses a temporary probe consumer rather than a real application worker.
 - `BUGS.md` should remain limited to smoke-test-discovered regressions only.
 - `TODO.md` is the backlog; this file is the current-state dashboard.
 

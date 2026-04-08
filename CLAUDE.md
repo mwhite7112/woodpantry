@@ -149,6 +149,7 @@ make dev-down      # Tear down stack
 make test          # Start stack → run all smoke tests → tear down
 make test-only     # Run smoke tests against already-running stack
 make test-rabbitmq-restart  # Opt-in broker restart durability verification
+make test-rabbitmq-redelivery  # Opt-in consumer crash/redelivery verification
 ```
 
 ### Bug Tracking
