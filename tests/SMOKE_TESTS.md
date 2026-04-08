@@ -31,6 +31,7 @@ tests/
 ├── smoke_health.sh
 ├── smoke_rabbitmq.sh
 ├── smoke_rabbitmq_restart.sh
+├── smoke_rabbitmq_redelivery.sh
 ├── smoke_ingredients.sh
 ├── smoke_recipes.sh
 ├── smoke_recipes_contracts.sh
@@ -110,6 +111,8 @@ Run tests from lowest-level dependency to highest-level flow:
 This keeps failures local. If Matching fails because Pantry changed its response shape, you should see Pantry fail first.
 
 `smoke_rabbitmq_restart.sh` is intentionally not part of the default `run_all.sh` sequence because it restarts the local broker container. Run it explicitly after the normal suite when you want restart-level durability evidence.
+
+`smoke_rabbitmq_redelivery.sh` is also intentionally opt-in. It uses a temporary probe consumer inside the running local stack, crashes that consumer before `ack`, and then verifies that a replacement consumer receives the same message with the AMQP `redelivered` flag set.
 
 ## Comprehensive Test Matrix
 
@@ -362,6 +365,34 @@ Implementation note:
 - This is an opt-in, disruptive check and is intentionally excluded from `run_all.sh`.
 - It proves broker-level durable storage across restart.
 - It does not prove consumer-restart behavior, redelivery of unacked in-flight messages, or application-specific replay semantics.
+
+### `smoke_rabbitmq_redelivery.sh`
+
+Purpose: prove consumer-side redelivery semantics with a narrowly controlled local queue and probe consumer, without depending on any application handler logic.
+
+Assertions:
+
+- A temporary durable verification queue can be declared and bound.
+- A persistent message can be published to that queue.
+- A first probe consumer can receive the message and then crash before `ack`.
+- RabbitMQ requeues the unacked message after that consumer connection dies.
+- A replacement probe consumer receives the same payload with `redelivered = true`.
+- The replacement consumer can `ack` the redelivery and drain the queue.
+
+Runbook:
+
+```bash
+make dev
+make wait-healthy
+make test-rabbitmq-redelivery
+```
+
+Implementation note:
+
+- This is an opt-in, non-default check because it uses `podman compose exec` into the local stack to run a temporary AMQP probe consumer.
+- It proves broker-plus-protocol redelivery behavior for an unacked delivery after a consumer process crash.
+- It does not prove that a specific WoodPantry service will reconnect, resume consuming, or process the replayed message correctly after its own container or pod restart.
+- It does not prove handler idempotency, duplicate suppression, or end-to-end recovery of any real application workflow.
 
 ### `smoke_ingestion_twilio.sh`
 

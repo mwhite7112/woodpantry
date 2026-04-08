@@ -17,7 +17,8 @@
 - The pantry cluster deployment now injects `RABBITMQ_URL`, so `pantry.updated` publishing is enabled by the cluster manifests when the secret contains `rabbitmq_url`.
 - Local broker proof now exists in `tests/smoke_rabbitmq.sh`: it verifies exchange/queue durability flags, direct publish/get, and `pantry.updated` routing.
 - Local broker-restart proof now also exists in `tests/smoke_rabbitmq_restart.sh`: it restarts the local `rabbitmq` container without removing volumes and verifies that a durable queue plus a persistent message survive the restart. This passed locally on 2026-04-03 via `make test-rabbitmq-restart`.
-- Consumer-restart behavior is still an explicit follow-up; the current repo automation does not yet prove unacked-message redelivery or application-specific replay after restarting a real consumer.
+- Local consumer-redelivery proof now also exists in `tests/smoke_rabbitmq_redelivery.sh`: it publishes a persistent message to a temporary durable queue, crashes a probe consumer before `ack`, and verifies that a replacement consumer receives the same payload with `redelivered = true`. This is the narrow local proof for unacked-message survival across consumer loss.
+- Application-specific consumer restart and replay handling are still an explicit follow-up; the current repo automation does not yet prove that a real WoodPantry service container or pod reconnects and safely reprocesses the replayed message after restart.
 
 **Exit Criteria**:
 - You can text a grocery list to a Twilio number and have it show up in your pantry after confirming
@@ -65,7 +66,8 @@
 - [x] RabbitMQ management UI accessible
 - [x] Local publish/consume round-trip works via `tests/smoke_rabbitmq.sh`
 - [x] Durable queue plus persistent message survive a targeted local broker restart via `tests/smoke_rabbitmq_restart.sh`
-- [ ] Durable behavior across a real consumer restart is directly re-verified
+- [x] Unacked-message redelivery after a consumer crash is re-verified via `tests/smoke_rabbitmq_redelivery.sh`
+- [ ] Durable behavior across a real WoodPantry consumer container or pod restart is directly re-verified
 
 ---
 

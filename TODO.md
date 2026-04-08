@@ -23,8 +23,9 @@ Generated 2026-04-01. Organized by service for chunk-based delegation.
 - [x] RabbitMQ credentials in cluster secrets
 - [x] Verify local publish/consume round-trip via `tests/smoke_rabbitmq.sh`
 - [x] Add a repeatable local broker-restart durability verification script (`tests/smoke_rabbitmq_restart.sh`)
+- [x] Add a repeatable local consumer redelivery verification script (`tests/smoke_rabbitmq_redelivery.sh`)
 - [ ] Run broker-restart durability verification as part of local release checks and record the result when executed
-- [ ] Verify consumer-restart behavior and unacked-message redelivery for at least one real application consumer
+- [ ] Verify restart/reconnect behavior and replay handling for at least one real application consumer container or pod
 
 ### Smoke Tests — Per-Release Triggers
 - [ ] Add `repository_dispatch` trigger (`image-published`) to `.github/workflows/smoke.yaml`

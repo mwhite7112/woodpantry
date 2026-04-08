@@ -52,6 +52,10 @@ test-health: ## Run only health-check smoke tests
 test-rabbitmq-restart: ## Verify durable queue/message survival across a RabbitMQ restart
 	@bash $(TESTS_DIR)/smoke_rabbitmq_restart.sh
 
+.PHONY: test-rabbitmq-redelivery
+test-rabbitmq-redelivery: ## Verify unacked message redelivery after a consumer crash/restart
+	@bash $(TESTS_DIR)/smoke_rabbitmq_redelivery.sh
+
 .PHONY: wait-healthy
 wait-healthy: ## Wait for all services to pass health checks (up to 120s)
 	@echo "Waiting for services to become healthy..."
