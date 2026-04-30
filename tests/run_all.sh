@@ -20,6 +20,7 @@ else
     TEST_FILES=(
         "$SCRIPT_DIR/smoke_health.sh"
         "$SCRIPT_DIR/smoke_rabbitmq.sh"
+        "$SCRIPT_DIR/smoke_ingestion_twilio.sh"
         "$SCRIPT_DIR/smoke_ingredients.sh"
         "$SCRIPT_DIR/smoke_ingredients_contracts.sh"
         "$SCRIPT_DIR/smoke_recipes.sh"

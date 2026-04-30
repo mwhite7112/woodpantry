@@ -80,6 +80,7 @@ fi
 
 assert_json_field "$CREATE_LIST_RESP" "recipe_ids" "Shopping list response has recipe_ids"
 assert_json_field "$CREATE_LIST_RESP" "items" "Shopping list response has items"
+assert_json_field "$CREATE_LIST_RESP" "groups" "Shopping list response has category groups"
 
 ITEM_COUNT=$(extract_json "$CREATE_LIST_RESP" '.items | length')
 if [[ "$ITEM_COUNT" == "1" ]]; then
@@ -112,6 +113,18 @@ else
     log_fail "Shopping list quantities were incorrect. Expected name='$INGREDIENT_NAME', needed=3.5, pantry=1.0, to_buy=2.5, unit='cup'. Response: $FIRST_ITEM"
 fi
 
+if echo "$CREATE_LIST_RESP" | jq -e '
+    (.groups | length == 1) and
+    (.groups[0].category == .items[0].category) and
+    (.groups[0].items | length == 1) and
+    (.groups[0].items[0].id == .items[0].id) and
+    (.groups[0].items[0].name == "'"$INGREDIENT_NAME"'")
+' > /dev/null 2>&1; then
+    log_success "Shopping list response includes additive category groups without changing flat items"
+else
+    log_fail "Shopping list category groups did not mirror the flat item. Response: $CREATE_LIST_RESP"
+fi
+
 log_step "Shopping List — Fetch Persisted List"
 
 GET_LIST_RESP=$(api_get "$SHOP_URL/shopping-list/$LIST_ID") || {
@@ -136,6 +149,17 @@ if echo "$GET_LIST_RESP" | jq -e '
     log_success "GET /shopping-list/{id} preserved the created aggregate and pantry delta"
 else
     log_fail "Fetched shopping list did not preserve the created aggregate quantities. Response: $GET_LIST_RESP"
+fi
+
+if echo "$GET_LIST_RESP" | jq -e '
+    (.groups | length == 1) and
+    (.groups[0].category == .items[0].category) and
+    (.groups[0].items | length == 1) and
+    (.groups[0].items[0].id == .items[0].id)
+' > /dev/null 2>&1; then
+    log_success "GET /shopping-list/{id} preserved category groups"
+else
+    log_fail "Fetched shopping list did not preserve category groups. Response: $GET_LIST_RESP"
 fi
 
 smoke_summary; exit $?

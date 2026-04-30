@@ -24,8 +24,9 @@ Generated 2026-04-01. Organized by service for chunk-based delegation.
 - [x] Verify local publish/consume round-trip via `tests/smoke_rabbitmq.sh`
 - [x] Add a repeatable local broker-restart durability verification script (`tests/smoke_rabbitmq_restart.sh`)
 - [x] Add a repeatable local consumer redelivery verification script (`tests/smoke_rabbitmq_redelivery.sh`)
+- [x] Add a repeatable local real-application consumer restart verification script for `woodpantry-recipes` consuming `recipe.imported` (`tests/smoke_rabbitmq_app_consumer_restart.sh`)
 - [ ] Run broker-restart durability verification as part of local release checks and record the result when executed
-- [ ] Verify restart/reconnect behavior and replay handling for at least one real application consumer container or pod
+- [ ] Run real application consumer restart/replay verification as part of local release checks and record the result when executed
 
 ### Smoke Tests — Per-Release Triggers
 - [ ] Add `repository_dispatch` trigger (`image-published`) to `.github/workflows/smoke.yaml`
@@ -152,7 +153,7 @@ Generated 2026-04-01. Organized by service for chunk-based delegation.
 
 ## woodpantry-shopping-list
 
-> Phase 2 service. Backend generation flow is implemented and now root-smoke-verified. Remaining work is around grouped/category presentation, release wiring, and broader test depth.
+> Phase 2 service. Backend generation flow is implemented and now root-smoke-verified. Remaining work is around release wiring and broader test depth.
 
 ### W-6 — Full Service Build
 
@@ -179,7 +180,7 @@ Generated 2026-04-01. Organized by service for chunk-based delegation.
 - [x] Generation algorithm: fetch recipes -> aggregate ingredients -> normalize units -> diff against pantry -> group by category
 - [x] Quantity aggregation with unit conversion (e.g. 500g + 250g = 750g)
 - [x] Delta calculation: needed_qty = recipe_qty - pantry_qty (floor at 0)
-- [ ] Category grouping (produce, dairy, protein, pantry, spice, liquid, other)
+- [x] Category grouping in API responses via additive `groups: [{category, items}]` while preserving flat `items`
 
 #### API Handlers
 - [x] `GET /healthz`

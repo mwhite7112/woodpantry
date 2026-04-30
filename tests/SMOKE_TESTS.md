@@ -32,6 +32,7 @@ tests/
 ├── smoke_rabbitmq.sh
 ├── smoke_rabbitmq_restart.sh
 ├── smoke_rabbitmq_redelivery.sh
+├── smoke_rabbitmq_app_consumer_restart.sh
 ├── smoke_ingredients.sh
 ├── smoke_recipes.sh
 ├── smoke_recipes_contracts.sh
@@ -96,23 +97,26 @@ Run tests from lowest-level dependency to highest-level flow:
 
 1. `smoke_health.sh`
 2. `smoke_rabbitmq.sh`
-3. `smoke_ingredients.sh`
-4. `smoke_recipes.sh`
-5. `smoke_recipes_contracts.sh`
-6. `smoke_pantry.sh`
-7. `smoke_pantry_ingest.sh`
-8. `smoke_matching.sh`
-9. `smoke_phase1_e2e.sh`
-10. Phase 2 files
-11. `smoke_phase2_e2e.sh`
-12. Phase 3 files
-13. `smoke_phase3_e2e.sh`
+3. `smoke_ingestion_twilio.sh` (skips when local Twilio signature validation is not configured)
+4. `smoke_ingredients.sh`
+5. `smoke_recipes.sh`
+6. `smoke_recipes_contracts.sh`
+7. `smoke_pantry.sh`
+8. `smoke_pantry_ingest.sh`
+9. `smoke_matching.sh`
+10. `smoke_phase1_e2e.sh`
+11. Remaining Phase 2 files
+12. `smoke_phase2_e2e.sh`
+13. Phase 3 files
+14. `smoke_phase3_e2e.sh`
 
 This keeps failures local. If Matching fails because Pantry changed its response shape, you should see Pantry fail first.
 
 `smoke_rabbitmq_restart.sh` is intentionally not part of the default `run_all.sh` sequence because it restarts the local broker container. Run it explicitly after the normal suite when you want restart-level durability evidence.
 
 `smoke_rabbitmq_redelivery.sh` is also intentionally opt-in. It uses a temporary probe consumer inside the running local stack, crashes that consumer before `ack`, and then verifies that a replacement consumer receives the same message with the AMQP `redelivered` flag set.
+
+`smoke_rabbitmq_app_consumer_restart.sh` is intentionally opt-in and excluded from `run_all.sh` because it stops and starts application services. It stops ingestion to avoid extraction races, creates a real recipe ingest job, queues a persistent synthetic `recipe.imported` event while `woodpantry-recipes` is stopped, restarts recipes, and verifies the real recipes consumer stages the job after restart.
 
 ## Comprehensive Test Matrix
 
@@ -394,18 +398,49 @@ Implementation note:
 - It does not prove that a specific WoodPantry service will reconnect, resume consuming, or process the replayed message correctly after its own container or pod restart.
 - It does not prove handler idempotency, duplicate suppression, or end-to-end recovery of any real application workflow.
 
-### `smoke_ingestion_twilio.sh`
+### `smoke_rabbitmq_app_consumer_restart.sh`
 
-Purpose: protect the SMS ingestion contract.
+Purpose: prove one real WoodPantry RabbitMQ consumer can resume after service restart and process a queued application event.
 
 Assertions:
 
-- `POST /twilio/inbound` with valid form payload returns success.
-- Invalid Twilio signature returns 403.
-- A normal SMS body creates or enqueues a pantry ingest job.
-- A `CONFIRM` reply confirms the latest pending job for that phone number.
+- Ingestion can be stopped before job creation to prevent the normal extraction worker from racing the probe.
+- `POST /recipes/ingest` creates a real recipe ingest job while RabbitMQ publishing is enabled.
+- `woodpantry-recipes` can be stopped before the synthetic `recipe.imported` event is published.
+- A persistent synthetic `recipe.imported` event routes into the durable `recipes.recipe-imported` queue while recipes is down.
+- After recipes is restarted, `GET /recipes/ingest/:job_id` eventually reports the job as staged/ready and exposes the synthetic staged data.
 
-Keep this file isolated from real Twilio by using local signature fixtures and fake credentials.
+Runbook:
+
+```bash
+make dev
+make wait-healthy
+make test-rabbitmq-app-consumer-restart
+```
+
+Implementation note:
+
+- This is a disruptive local check and is intentionally excluded from `run_all.sh`.
+- It covers the `woodpantry-recipes` `recipe.imported` consumer path only; other real application consumers still need their own restart/replay proofs.
+- It does not prove cluster pod restart behavior or duplicate-message idempotency.
+
+### `smoke_ingestion_twilio.sh`
+
+Purpose: protect the SMS ingestion contract without contacting live Twilio.
+
+Assertions:
+
+- Skips cleanly if Twilio signature validation is not configured on the ingestion service or if the smoke runner cannot access `TWILIO_AUTH_TOKEN` to generate a local valid signature.
+- `POST /twilio/inbound` with an invalid Twilio signature returns 403.
+- Invalid Twilio requests do not publish `pantry.ingest.requested`.
+- `POST /twilio/inbound` with a locally generated valid signature and SMS form payload returns success (`200` or `202`).
+- The valid SMS routes a persistent `pantry.ingest.requested` event into a temporary RabbitMQ verification queue with `job_id`, `raw_text`, and `from_number`.
+
+Implementation notes:
+
+- The test reads `TWILIO_AUTH_TOKEN` from the process environment or `local/.env` so it can generate the same HMAC-SHA1 signature Twilio would send.
+- The test temporarily unbinds the real `ingestion.pantry-ingest-requested` queue while posting the valid SMS, then restores the binding in cleanup. This keeps the smoke test from invoking the pantry worker, OpenAI extraction, or outbound Twilio SMS.
+- Keep this file isolated from real Twilio by using local signature fixtures and fake credentials.
 
 ### `smoke_shopping_list.sh`
 
@@ -422,6 +457,7 @@ Assertions:
 - The fixture creates two recipes with the same ingredient so the generated list deduplicates into one aggregated item.
 - That aggregated item reports `quantity_needed = 3.5`, `quantity_in_pantry = 1.0`, and `quantity_to_buy = 2.5` for the deterministic `cup` fixture.
 - `GET /shopping-list/:id` returns the same persisted item and quantities as `POST /shopping-list`.
+- Both create and fetch responses include additive `groups` that mirror the flat `items` by category.
 
 ### `smoke_phase2_e2e.sh`
 

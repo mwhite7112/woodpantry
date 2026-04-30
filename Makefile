@@ -56,6 +56,10 @@ test-rabbitmq-restart: ## Verify durable queue/message survival across a RabbitM
 test-rabbitmq-redelivery: ## Verify unacked message redelivery after a consumer crash/restart
 	@bash $(TESTS_DIR)/smoke_rabbitmq_redelivery.sh
 
+.PHONY: test-rabbitmq-app-consumer-restart
+test-rabbitmq-app-consumer-restart: ## Verify recipes consumes queued recipe.imported after service restart
+	@bash $(TESTS_DIR)/smoke_rabbitmq_app_consumer_restart.sh
+
 .PHONY: wait-healthy
 wait-healthy: ## Wait for all services to pass health checks (up to 120s)
 	@echo "Waiting for services to become healthy..."

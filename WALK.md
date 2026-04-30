@@ -7,7 +7,7 @@
 - [x] W-2 through W-4 are partially to mostly implemented in application code.
 - [x] `woodpantry-ingestion` now has a passing local Python test suite.
 - [ ] W-5 and W-7 are not implemented beyond stubs/placeholders.
-- [~] W-6 backend generation is implemented and locally verified by service integration tests plus root smoke coverage; category-grouped responses and release wiring still remain.
+- [~] W-6 backend generation is implemented and locally verified by service integration tests plus root smoke coverage; additive category-grouped responses are implemented, while release wiring still remains.
 
 **Notes**:
 - `woodpantry-recipes` already uses async queue-based ingest.
@@ -173,7 +173,7 @@
 - [x] Runnable Go scaffold: entrypoint, env parsing, migrations, `/healthz`, Dockerfile, tests, and Kubernetes manifests
 - [x] `POST /shopping-list` — accept array of recipe IDs; fetch each recipe's ingredients from Recipe Service; aggregate quantities per ingredient; diff against Pantry Service current state; persist and return list
 - [x] `GET /shopping-list/:id` — retrieve a previously generated list
-- [ ] Items grouped by ingredient category in response
+- [x] Items grouped by ingredient category in response while preserving flat `items`
 - [x] Quantity aggregation handles unit normalization (e.g. 500g + 250g = 750g) using unit conversion data from Dictionary
 - [x] HTTP clients for Recipe Service, Pantry Service, Ingredient Dictionary
 
@@ -184,7 +184,7 @@
 - [x] Shopping list generation is smoke-verified for overlapping recipe ingredients with pantry subtraction
 - [ ] Items already in pantry at sufficient quantity do not appear on the list
 - [ ] Items partially in pantry show the delta quantity needed
-- [ ] Response groups items by category (produce, dairy, protein, pantry, spice, etc.)
+- [x] Response groups items by category using `groups: [{category, items}]`
 
 ---
 
