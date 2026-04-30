@@ -60,7 +60,7 @@ Status meanings:
 
 1. Finish Twilio SMS pantry ingest in `woodpantry-ingestion`
 2. Keep using the RabbitMQ restart/redelivery checks, then close the remaining real-consumer restart and downstream-consumer gaps
-3. Finish category-grouped shopping-list responses and release wiring
+3. Finish shopping-list release wiring
 4. Write the OpenAPI spec once Phase 2 contracts are stable
 
 ## Recently Verified
